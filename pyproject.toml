@@ -1,0 +1,35 @@
+[tool.poetry]
+name = "clean-energyplus"
+version = "0.1.0"
+description = "A thin translation layer from energyplus to gymnasium"
+authors = ["Justin Veilleux <justin.veilleux@mila.quebec>"]
+license = "BSD"
+packages = [{include = "clean_energyplus", from = "src"}]
+include = ["src/clean_energyplus/data/**/*"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.10"
+rdflib = "^7.0.0"
+gymnasium = "^0.29.0"
+# How to express dependency on pyenergyplus since it is not on pypi?
+# pyenergyplus = { version = "*", allow-prereleases = true }
+
+[project.optional-dependencies]
+myfeature = ["pyenergyplus"]
+
+[tool.poetry.dev-dependencies]
+pytest = "^8.0.0"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+python_files = ["test_*.py"]
+addopts = "-v"
+# addopts = "-v --cov=src/my_library"
+
