@@ -14,8 +14,11 @@ This module collects functions useful to creates those 4-tuples.
 """
 
 import collections
-import graph
+import clean_energyplus.query_info as query_info
+import rdflib
+import typing
 import clean_energyplus.simulation as simulation
+
 
 SimulationConfig = collections.namedtuple(
     "SimulationConfig",
@@ -28,97 +31,99 @@ SimulationConfig = collections.namedtuple(
 )
 
 
-def auto_add_actuators(rdf, actuators):
+def auto_get_actuators(
+    rdf: rdflib.Graph,
+) -> typing.Dict[str, simulation.ActuatorThingy]:
     """Add all actuators listed in the graph. This is probably not what you
     want, since actuators that are not heating/cooling setpoints will be added
     too."""
-    for name in graph.rdf_schedules(rdf):
-        # for name in zones_with_cooling
-        actuators[name] = ("Schedule:Compact", "Schedule Value", name)
-
-
-def auto_add_actuators_observation(rdf, variables):
     act = {}
-    for name in graph.rdf_schedules(rdf):
+    for name in query_info.rdf_schedules(rdf):
         # for name in zones_with_cooling
-        act[name] = simulation.Actuator(
-            (
-                "Schedule:Compact",
-                "Schedule Value",
-                name,
-            )
+        act[name] = simulation.ActuatorThingy(
+            "Schedule:Compact", "Schedule Value", name
+        )
+    return act
+
+
+def auto_add_actuators_observation(rdf: rdflib.Graph, variables) -> None:
+    act = {}
+    for name in query_info.rdf_schedules(rdf):
+        # for name in zones_with_cooling
+        act[name] = simulation.ActuatorHole(
+            "Schedule:Compact",
+            "Schedule Value",
+            name,
         )
     variables["actuators"] = act
 
 
-def auto_add_temperature_variables(rdf, variables):
+def auto_add_temperature_variables(rdf: rdflib.Graph, variables) -> None:
     """Add a "ZONE AIR TEMPERATURE" for each zone in the graph."""
     temps = {}
-    temps["environment"] = simulation.Variable(
-        (
-            "SITE OUTDOOR AIR DRYBULB TEMPERATURE",
-            "ENVIRONMENT",
-        )
+    temps["environment"] = simulation.VariableHole(
+        "SITE OUTDOOR AIR DRYBULB TEMPERATURE",
+        "ENVIRONMENT",
     )
-    for z in graph.rdf_zones(rdf):
-        temps[z] = simulation.Variable(("ZONE AIR TEMPERATURE", z))
+    for z in query_info.rdf_zones(rdf):
+        temps[z] = simulation.VariableHole("ZONE AIR TEMPERATURE", z)
         variables["temperature"] = temps
 
 
-def auto_add_setpoint_variables(rdf, variables):
-    setpoints = {}
+def auto_add_setpoint_variables(rdf: rdflib.Graph, variables) -> None:
+    setpoints: typing.Any = {}
     variables["setpoints"] = setpoints
 
-    heating = {}
+    heating: typing.Any = {}
     setpoints["heating"] = heating
 
-    cooling = {}
+    cooling: typing.Any = {}
     setpoints["cooling"] = cooling
 
-    for z in graph.rdf_zones(rdf):
-        heating[z] = simulation.Variable(
-            ("Zone Thermostat Heating Setpoint Temperature", z)
+    for z in query_info.rdf_zones(rdf):
+        heating[z] = simulation.VariableHole(
+            "Zone Thermostat Heating Setpoint Temperature", z
         )
-        cooling[z] = simulation.Variable(
-            ("Zone Thermostat Cooling Setpoint Temperature", z)
+        cooling[z] = simulation.VariableHole(
+            "Zone Thermostat Cooling Setpoint Temperature", z
         )
 
 
-def auto_add_comfort_variables(rdf, variables):
+def auto_add_comfort_variables(rdf: rdflib.Graph, variables) -> None:
     if "comfort" not in variables:
         variables["comfort"] = {}
 
     comfort = variables["comfort"]
-    for z in graph.rdf_zones(rdf):
-        comfort[z + "_comfort"] = simulation.Variable(
-            ("Zone Thermal Comfort Pierce Model Thermal Sensation Index", z)
+    for z in query_info.rdf_zones(rdf):
+        comfort[z + "_comfort"] = simulation.VariableHole(
+            "Zone Thermal Comfort Pierce Model Thermal Sensation Index", z
         )
-        comfort[z + "_discomfort"] = simulation.Variable(
-            ("Zone Thermal Comfort Pierce Model Discomfort Index", z)
+        comfort[z + "_discomfort"] = simulation.VariableHole(
+            "Zone Thermal Comfort Pierce Model Discomfort Index", z
         )
 
 
-def auto_add_energy_variables(rdf, variables):
+def auto_add_energy_variables(rdf: rdflib.Graph, variables) -> None:
     if "reward" not in variables:
         variables["energy"] = {}
 
     r = variables["energy"]
 
-    r["whole_building"] = simulation.Meter("Electricity:HVAC")
+    r["whole_building"] = simulation.MeterHole("Electricity:HVAC")
 
-    for z in graph.rdf_zones(rdf):
-        r[z + "_cooling"] = simulation.Variable(
-            ("Zone Air System Sensible Cooling Energy", z)
+    for z in query_info.rdf_zones(rdf):
+        r[z + "_cooling"] = simulation.VariableHole(
+            "Zone Air System Sensible Cooling Energy", z
         )
-        r[z + "_heating"] = simulation.Variable(
-            ("Zone Air System Sensible Heating Energy", z)
+        r[z + "_heating"] = simulation.VariableHole(
+            "Zone Air System Sensible Heating Energy", z
         )
 
 
-def auto_add_base_variables(rdf, variables):
+def auto_add_time_variables(rdf: rdflib.Graph, variables) -> None:
     """Add ubiquitous variables."""
 
-    time = {}
+    time: typing.Any = {}
     variables["time"] = time
     time["current_time"] = simulation.FunctionHole(simulation.api.exchange.current_time)
 
@@ -129,46 +134,3 @@ def auto_add_base_variables(rdf, variables):
     time["day_of_year"] = simulation.FunctionHole(simulation.api.exchange.day_of_year)
     # time["actual_date_time"] = myeplus.Function(myeplus.api.exchange.actual_date_time)
     # time["year"] = myeplus.Function(myeplus.api.exchange.year)
-
-
-def auto_add_debug_variables(_, variables):
-    debug = {}
-    variables["debug"] = debug
-    debug["api_data_fully_ready"] = simulation.FunctionHole(
-        simulation.api.exchange.api_data_fully_ready
-    )
-
-
-def alburquerque():
-    buildingfile = "./buildings/alburquerque.epJSON"
-    weatherfile = "./honolulu.epw"
-
-    rdf = graph.json_to_rdf(buildingfile)
-    actuators = {}
-    variables = {}
-
-    auto_add_energy_variables(rdf, variables)
-    auto_add_actuators(rdf, actuators)
-    auto_add_actuators_observation(rdf, variables)
-    auto_add_base_variables(rdf, variables)
-    auto_add_temperature_variables(rdf, variables)
-    return SimulationConfig(buildingfile, weatherfile, variables, actuators)
-
-
-def crawlspace():
-    buildingfile = "./buildings/crawlspace.epJSON"
-    weatherfile = "./miami.epw"
-
-    rdf = graph.json_to_rdf(buildingfile)
-    actuators = {}
-    variables = {}
-
-    auto_add_energy_variables(rdf, variables)
-    auto_add_actuators(rdf, actuators)
-    auto_add_actuators_observation(rdf, variables)
-    auto_add_base_variables(rdf, variables)
-    auto_add_temperature_variables(rdf, variables)
-    auto_add_debug_variables(rdf, variables)
-    # auto_add_comfort_variables(rdf, variables)
-    # auto_add_setpoint_variables(rdf, variables)
-    return SimulationConfig(buildingfile, weatherfile, variables, actuators)

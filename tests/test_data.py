@@ -9,10 +9,8 @@ def test_data_sanity():
 
 
 def test_crawlspace():
-
     assert building.joinpath("crawlspace.epJSON").exists()
 
 
 def test_honolulu():
-
     assert weather.joinpath("honolulu.epw").exists()

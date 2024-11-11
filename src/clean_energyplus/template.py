@@ -14,16 +14,16 @@ T = typing.TypeVar("T")
 
 def search_replace(
     obj: typing.Any,
-    SomeType: typing.Type[T],
+    SomeType: type[T],
     func: typing.Callable[[T], typing.Any],
-):
-    if type(obj) == dict:
+) -> typing.Any:
+    if isinstance(obj, dict):
         return {k: search_replace(v, SomeType, func) for k, v in obj.items()}
-    elif type(obj) == list:
+    elif isinstance(obj, list):
         return [search_replace(v, SomeType, func) for v in obj]
-    elif type(obj) == tuple:
+    elif isinstance(obj, tuple):
         return tuple(search_replace(v, SomeType, func) for v in obj)
-    elif type(obj) == SomeType:
+    elif isinstance(obj, SomeType):
         return func(obj)
     else:
         return obj

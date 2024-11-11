@@ -17,117 +17,7 @@ def quote(n):
     return n
 
 
-def color_graph(graph):
-    for name, data in graph.nodes(data=True):
-        if data["type"] == "Outdoors":
-            data["color"] = "blue"
-        if data["type"] == "Equipment":
-            data["shape"] = "rectangle"
-        if data["type"] == "Surface":
-            data["color"] = "green"
-
-
-def test():
-    with open("buildings/crawlspace.epJSON", "rb") as f:
-        obj = json.load(f)
-
-    def draw_surfaces_epjson(obj):
-
-        import matplotlib
-
-        matplotlib.use("TkAgg")
-        import matplotlib.pyplot as plt
-
-        surfaces = []
-        for name, val in obj["BuildingSurface:Detailed"].items():
-            print(name)
-            xs = []
-            ys = []
-            zs = []
-
-            for vertex in val["vertices"]:
-                xs.append(vertex["vertex_x_coordinate"])
-                ys.append(vertex["vertex_y_coordinate"])
-                zs.append(vertex["vertex_z_coordinate"])
-
-            xs.append(xs[0])
-            ys.append(ys[0])
-            zs.append(zs[0])
-            surfaces.append({"xs": xs, "ys": ys, "zs": zs, "name": name})
-        ax = plt.figure().add_subplot(projection="3d")
-        # Draw the graph of the zones
-        for sur in surfaces:
-            xs = sur["xs"]
-            ys = sur["ys"]
-            zs = sur["zs"]
-            ax.plot(xs, ys, zs, label=sur["name"])
-
-        # ax.legend()
-        # plt.show()
-        plt.savefig("building.svg")
-
-    draw_surfaces_epjson(obj)
-
-
-def draw_surfaces(idf):
-    import matplotlib
-
-    matplotlib.use("TkAgg")
-    import matplotlib.pyplot as plt
-
-    surfaces = []
-    for sur in idf.idfobjects["BuildingSurface:Detailed"]:
-        xs = []
-        ys = []
-        zs = []
-        for i in range(1, int(sur["Number_of_Vertices"] + 1)):
-            xs.append(sur[f"Vertex_{i}_Xcoordinate"])
-            ys.append(sur[f"Vertex_{i}_Ycoordinate"])
-            zs.append(sur[f"Vertex_{i}_Zcoordinate"])
-        xs.append(xs[0])
-        ys.append(ys[0])
-        zs.append(zs[0])
-
-        surfaces.append({"xs": xs, "ys": ys, "zs": zs, "name": sur["Name"]})
-
-    ax = plt.figure().add_subplot(projection="3d")
-    # Draw the graph of the zones
-    for sur in surfaces:
-        xs = sur["xs"]
-        ys = sur["ys"]
-        zs = sur["zs"]
-        ax.plot(xs, ys, zs, label=sur["name"])
-
-    ax.legend()
-    plt.show()
-
-
-def parseargs():
-    import argparse
-
-    parser = argparse.ArgumentParser(
-        prog="graph.py",
-        description="Create a graph of the zones from an idf file",
-    )
-    parser.add_argument("filename")
-    parser.add_argument(
-        "--draw",
-        action="store_true",
-        help="instead of outputting graphviz code, show a model of the building",
-    )
-    parser.add_argument(
-        "--idd",
-        help="the path to the idd file to be used",
-        default=profile.PROFILE + "/Energy+.idd",
-    )
-    parser.add_argument(
-        "--output", "-o", help="the output file to write to", default="/dev/stdout"
-    )
-    args = parser.parse_args()
-    return args
-
-
-def intern_object(
+def _intern_object(
     g: rdflib.Graph,
     subject,
     value,
@@ -148,7 +38,7 @@ def intern_object(
                 name = rdflib.Literal(elem)
             elif type(elem) in [dict, list]:
                 name = rdflib.BNode()
-                intern_object(g, name, elem)
+                _intern_object(g, name, elem)
             else:
                 raise BaseException("erreur!")
 
@@ -162,7 +52,7 @@ def intern_object(
                 g.add((subject, ns[k], name))
             elif type(elem) in [dict, list]:
                 name = rdflib.BNode()
-                intern_object(g, name, elem)
+                _intern_object(g, name, elem)
             else:
                 raise BaseException("erreur!")
             g.add((subject, ns[k], name))
@@ -194,7 +84,7 @@ def json_to_rdf(jsonfile):
                 if type(val) == list:
                     name = rdflib.BNode()
                     g.add((rName, n[key], name))
-                    intern_object(g, name, val)
+                    _intern_object(g, name, val)
 
     return g
 
@@ -236,13 +126,13 @@ def rdf_to_dot(rdf: rdflib.Graph):
     return o
 
 
-def rdf_zones(rdf: rdflib.Graph):
+def rdf_zones(rdf: rdflib.Graph) -> list[str]:
     """Return a list of all the zones in the building"""
     q = """# -*- mode: sparql -*-
 SELECT ?name WHERE {
   ?name a "Zone" .
 }"""
-    return list(set(x.value for (x,) in rdf.query(q)))
+    return list(set(str(x) for (x,) in rdf.query(q)))
 
 
 def rdf_schedules(rdf: rdflib.Graph):
