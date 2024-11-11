@@ -83,8 +83,7 @@ class EnergyPlusEnvironment(gymnasium.Env, typing.Generic[ObsType, ActType]):
     ) -> typing.Tuple[typing.Any, dict[str, typing.Any]]:
         super().reset()
         self.ep = self.make_energyplus()
-        self.ep.start()
-        obs, over = self.ep._get_obs()
+        obs, over = self.ep.start()
         return self.observation_transform(obs), {"raw_observation": obs}
 
     def step(self, action) -> typing.Tuple[ObsType, float, bool, bool, typing.Any]:

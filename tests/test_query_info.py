@@ -1,11 +1,9 @@
 import rdflib
-import tests.test_data as test_data
 import clean_energyplus.query_info as query_info
+import clean_energyplus.data.building as building
 
 
 def test_zones():
-
-    epjson = test_data.building.joinpath("crawlspace.epJSON")
 
     zones_expected = [
         "Breezeway",
@@ -31,7 +29,7 @@ def test_zones():
         "living_unit3_FrontRow_TopFloor",
     ]
 
-    rdf = query_info.json_to_rdf(epjson)
+    rdf = query_info.rdf_from_json(building.crawlspace)
 
     zones_real = query_info.rdf_zones(rdf)
 

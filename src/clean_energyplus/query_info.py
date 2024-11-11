@@ -58,7 +58,7 @@ def _intern_object(
             g.add((subject, ns[k], name))
 
 
-def json_to_rdf(jsonfile):
+def rdf_from_json(jsonfile):
     """Take an epJSON file path, read it and transform it into an RDF
     representation that can be queried (through .query(q: str)) in SPARQL.
     """

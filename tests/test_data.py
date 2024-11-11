@@ -1,16 +1,21 @@
-from importlib import resources
-
-building = resources.files("clean_energyplus.data.building")
-weather = resources.files("clean_energyplus.data.weather")
-
-
-def test_data_sanity():
-    assert not building.joinpath("does_not_exist.epJSON").exists()
+import clean_energyplus.data.building as building
+import clean_energyplus.data.weather as weather
+import os
 
 
 def test_crawlspace():
-    assert building.joinpath("crawlspace.epJSON").exists()
+    assert os.path.exists(building.crawlspace)
 
 
 def test_honolulu():
-    assert weather.joinpath("honolulu.epw").exists()
+    assert os.path.exists(weather.honolulu)
+
+
+def test_all_weather_files():
+    for f in weather.all_weather_files:
+        assert os.path.exists(f)
+
+
+def test_all_building_files():
+    for f in building.all_building_files:
+        assert os.path.exists(f)
