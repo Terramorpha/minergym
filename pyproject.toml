@@ -3,7 +3,7 @@ name = "clean-energyplus"
 version = "0.1.0"
 description = "A thin translation layer from energyplus to gymnasium"
 authors = ["Justin Veilleux <justin.veilleux@mila.quebec>"]
-license = "BSD"
+license = "MIT"
 packages = [{include = "clean_energyplus", from = "src"}]
 include = ["src/clean_energyplus/data/**/*"]
 readme = "README.md"
