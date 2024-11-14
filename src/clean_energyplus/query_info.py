@@ -17,11 +17,13 @@ def quote(n):
     return n
 
 
+ns = rdflib.Namespace("https://energyplus.net/")
+
+
 def _intern_object(
     g: rdflib.Graph,
     subject,
     value,
-    ns=rdflib.Namespace("http://terramorpha.org/"),
 ):
     """Take a rdf graph, a rdf subject and a python dict/array and intern
     it into the ontology.
@@ -62,10 +64,9 @@ def rdf_from_json(jsonfile):
     """Take an epJSON file path, read it and transform it into an RDF
     representation that can be queried (through .query(q: str)) in SPARQL.
     """
-    n = rdflib.Namespace("http://terramorpha.org/")
     isa = rdflib.namespace.RDF.type
     g = rdflib.Graph()
-    g.bind("idf", n)
+    g.bind("idf", ns)
 
     with open(jsonfile, "rb") as f:
         j = json.load(f)
@@ -80,10 +81,10 @@ def rdf_from_json(jsonfile):
             for key, val in keyvals.items():
                 if type(val) in [str, float, int]:
                     name = rdflib.Literal(val)
-                    g.add((rName, n[key], name))
+                    g.add((rName, ns[key], name))
                 if type(val) == list:
                     name = rdflib.BNode()
-                    g.add((rName, n[key], name))
+                    g.add((rName, ns[key], name))
                     _intern_object(g, name, val)
 
     return g
