@@ -166,6 +166,8 @@ class EnergyPlusSimulation:
 
     state: int
 
+    number_of_warmup_phases_completed: int = 0
+
     def __init__(
         self,
         building: str,
@@ -193,6 +195,13 @@ class EnergyPlusSimulation:
                 return
 
             if api.exchange.warmup_flag(state):
+                return
+
+            # The energyplus simulator has 5 warmup phases. If we start
+            # evaluating setpoints and sending observations before all the
+            # warmup phases are all done, the policy will see the date jump
+            # around, which is bad.
+            if self.number_of_warmup_phases_completed < 5:
                 return
 
             if self.observation_handles is None:
@@ -225,8 +234,6 @@ class EnergyPlusSimulation:
                 lambda fn: fn.inner(self.state),
             )
             obs = function_replaced
-            # Here, we assume `variable_handles` takes the shape of a dict
-            # which might not be the case.
 
             if not (self.n_steps < self.max_steps):
                 api.runtime.stop_simulation(self.state)
@@ -356,6 +363,14 @@ class EnergyPlusSimulation:
 
         api.runtime.callback_begin_system_timestep_before_predictor(
             self.state, self.callback_timestep
+        )
+
+        def warmup_callback(state: int):
+            print("warmup complete")
+            self.number_of_warmup_phases_completed += 1
+
+        api.runtime.callback_after_new_environment_warmup_complete(
+            self.state, warmup_callback
         )
 
         self.thread = threading.Thread(target=eplus_thread, daemon=True)
