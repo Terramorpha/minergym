@@ -46,7 +46,9 @@ def auto_get_actuators(
     return act
 
 
-def auto_add_actuators_observation(rdf: rdflib.Graph, obs_template) -> None:
+def auto_add_actuators_observation(
+    rdf: rdflib.Graph, obs_template: typing.Dict[str, typing.Any]
+) -> None:
     act = {}
     for name in query_info.rdf_schedules(rdf):
         # for name in zones_with_cooling
@@ -58,7 +60,9 @@ def auto_add_actuators_observation(rdf: rdflib.Graph, obs_template) -> None:
     obs_template["actuators"] = act
 
 
-def auto_add_temperature(rdf: rdflib.Graph, obs_template) -> None:
+def auto_add_temperature(
+    rdf: rdflib.Graph, obs_template: typing.Dict[str, typing.Any]
+) -> None:
     """Add a "ZONE AIR TEMPERATURE" for each zone in the graph."""
     temps = {}
     temps["environment"] = simulation.VariableHole(
@@ -70,7 +74,9 @@ def auto_add_temperature(rdf: rdflib.Graph, obs_template) -> None:
         obs_template["temperature"] = temps
 
 
-def auto_add_setpoint_variables(rdf: rdflib.Graph, obs_template) -> None:
+def auto_add_setpoint_variables(
+    rdf: rdflib.Graph, obs_template: typing.Dict[str, typing.Any]
+) -> None:
     setpoints: typing.Any = {}
     obs_template["setpoints"] = setpoints
 
@@ -89,7 +95,9 @@ def auto_add_setpoint_variables(rdf: rdflib.Graph, obs_template) -> None:
         )
 
 
-def auto_add_comfort(rdf: rdflib.Graph, obs_template) -> None:
+def auto_add_comfort(
+    rdf: rdflib.Graph, obs_template: typing.Dict[str, typing.Any]
+) -> None:
     if "comfort" not in obs_template:
         obs_template["comfort"] = {}
 
@@ -103,7 +111,9 @@ def auto_add_comfort(rdf: rdflib.Graph, obs_template) -> None:
         )
 
 
-def auto_add_energy(rdf: rdflib.Graph, obs_template) -> None:
+def auto_add_energy(
+    rdf: rdflib.Graph, obs_template: typing.Dict[str, typing.Any]
+) -> None:
     if "reward" not in obs_template:
         obs_template["energy"] = {}
 
@@ -120,7 +130,9 @@ def auto_add_energy(rdf: rdflib.Graph, obs_template) -> None:
         )
 
 
-def auto_add_time(rdf: rdflib.Graph, obs_template) -> None:
+def auto_add_time(
+    rdf: rdflib.Graph, obs_template: typing.Dict[str, typing.Any]
+) -> None:
     """Add ubiquitous variables."""
 
     time: typing.Any = {}
