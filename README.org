@@ -1,0 +1,218 @@
+#+language: en
+#+title: Clean Energyplus
+
+=clean-energyplus= aims to make it easy to create a gymnasium-compatible
+environment from energyplus.
+
+* Example
+
+#+begin_src python :session :results none
+import sys
+# clean_energyplus must have access to the energyplus python api.
+sys.path.append("/usr/local/energyplus-24.1")
+
+import numpy as np
+import gymnasium.spaces as spaces
+import typing
+
+# Exports EnergyPlusSimulation
+import clean_energyplus.simulation as simulation
+# automatically generates observation_template objects
+import clean_energyplus.config as config
+# points to building files shipped with the library
+import clean_energyplus.data.building as building
+# points to weather files
+import clean_energyplus.data.weather as weather
+# extracts information from epJSON files
+import clean_energyplus.query_info as query_info
+# wraps a simulation into a gym environment
+import clean_energyplus.environment as environment
+
+building_file = building.crawlspace
+weather_file = weather.honolulu
+
+obs_template = {}
+rdf = query_info.rdf_from_json(building_file)
+config.auto_add_time(rdf, obs_template)
+config.auto_add_temperature(rdf, obs_template)
+actuators = config.auto_get_actuators(rdf)
+
+print(f"{obs_template=}") # Look at what those are!
+print(f"{actuators=}")
+
+def make_energyplus() -> simulation.EnergyPlusSimulation:
+    # For a simulation to run, we need a building file,
+    # a weather file, an observation template and the dict
+    # of actuators we want to control.
+    return simulation.EnergyPlusSimulation(
+        building_file,
+        weather_file,
+        obs_template,
+        actuators,
+    )
+
+
+def reward_function(obs) -> float:
+    """Calculate a reward term from a "raw observation"."""
+    zone_blacklist = [
+        "environment",
+        "attic",
+        "Breezeway",
+        "crawlspace",
+    ]
+
+    def penalty(min, x, max):
+        if x < min:
+            return min - x
+        elif max < x:
+            return x - max
+        else:
+            return 0.0
+
+    def zone_sum(obs, min, max):
+        s = 0.0
+        for i, v in obs["temperature"].items():
+            if i in zone_blacklist:
+                continue
+            s += penalty(min, v, max)
+        return s
+
+    reward = 0.0
+
+    # Temperature reward
+
+    if 7 <= obs["time"]["current_time"] <= 19:
+        reward -= zone_sum(obs, 20, 23)
+    else:
+        reward -= zone_sum(obs, 15, 30)
+    return reward
+
+
+def to_list(obs):
+    """Extract from a raw observation the values we are interested in"""
+    pre_obs = (
+        # temperatures
+        [v for zone, v in obs["temperature"].items()] +
+        # temps
+        [obs["time"]["current_time"]]
+    )
+    return pre_obs
+
+
+def observation_transform(obs):
+    """Extract from a raw observation the values we are interested in. Turn
+    it into an array"""
+
+    obs = np.array(to_list(obs))
+    return obs
+
+
+observation_mock = to_list(obs_template)
+observation_space = spaces.Box(
+    np.array([0.0] * len(observation_mock)),
+    np.array([30.0] * len(observation_mock)),
+)
+
+action_space = spaces.Box(
+    np.array([0.0, 0.0]),
+    np.array([30.0, 30.0]),
+)
+
+
+def action_transform(act):
+    """The heating setpoint acts as some kind of "lower temperature bound" on
+    the environment. The policy will produce, instead of a cooling setpoint,
+    cooling - heating. This means the raw actions will always be consistent
+    (heating < cooling).
+
+    """
+
+    return {
+        "heating_sch": act[0],
+        "cooling_sch": act[0] + act[1],
+    }
+
+
+gymenv = environment.EnergyPlusEnvironment[typing.Any, typing.Any](
+    make_energyplus,
+    reward_function,
+    observation_space,
+    observation_transform,
+    action_space,
+    action_transform,
+)
+
+# Voila!
+obs, info = gymenv.reset()
+#+end_src
+
+#+RESULTS:
+: None
+
+* A step by step guide on creating a gym environment for a new building file
+
+1. Upgrade & convert your idf file
+   1. Use =$ENERGYPLUS_PATH/PreProcess/IDFVersionUpdater/Transition-*-to-*= to
+      upgrade it up to the version of your energyplus installation's version,
+      which should be at least =24.1=.
+   2. Run =$ENERGYPLUS_PATH/bin/ExpandObjects= on it.
+   3. convert it to the =epJSON= format using
+      =$ENERGYPLUS_PATH/bin/ConvertInputFormat=.
+
+3. Use the ~clean_energyplus.query_info.rdf_from_json~ function to parse the
+   building file. It gives you an rdf representation of every entity which will
+   be useful for the procedures in =config= to generate an observation template.
+
+4. Use the ~clean_energyplus.config~ module to create an observation template (use
+   the ~auto_add_*~ functions on an empty dict) and use ~auto_get_actuators~ to list
+   the actuators you want to control.
+
+5. Look at the ~observation_template~ dict all the ~auto_add_*~ procedure have
+   filled. At each time step, the simulation will fill replace each
+   ~SomethingHole~ with the value of the corresponding variable/meter.
+
+6. With the path to the =building.epJSON= file, the path to the =weather.epw= file,
+   the observation template and the dict of actuators, create a
+   ~clean_energyplus.simulation.EnergyPlusSimulation~ object, ~start~ it to make
+   sure the simulation is launching correctly.
+
+7. Once the simulation runs, we need a couple more components to wrap it in a
+   gym environment:
+   1. A well-defined observation space.
+   2. A function to transform an ~observation_template~-shaped object into a point
+      of the observation space.
+   3. A well-defined action space.
+   4. A function to transform a point of the action space into a
+      dict-of-actuator-values-shaped object.
+   5. A reward function computed from an ~observation_template~-shaped object.
+
+8. With those components, you can create a
+   ~clean_energyplus.environmnet.EnergyPlusEnvironment~ object.
+
+9. Do a couple of ~env.step(env.action_space.sample())~ iterations to make sure
+   your functions work correctly.
+
+* Things to look out for
+
+1. People usually install EnergyPlus by putting it at an arbitrary location. If
+   that is the case, python won't be able to find the ~pyenergyplus.api~ module.
+   To fix that, put ~import sys;sys.path.append("<path to energyplus>")~ somewhere
+   at the very beginning of your main script, or add the path to energyplus in
+   your =PYTHONPATH= environment variable.
+
+2. The ~config.auto_get_actuators~ function will give you more actuators than
+   necessary. This won't hurt the simulation, but you might want your
+   ~action_transform~ function to only consider some of them. You will have to run
+   a bunch of ~sim.step({"some_actuator": 12.345})~ experiments until you find
+   which one is the correct cooling setpoint, heating setpoint, et cetera.
+
+3. When you give the simulation a heating setpoint higher than the cooling
+   setpoint in the same zones, the simulation will crash. Because
+   =clean_energyplus= isn't able to make sense of which actuator means what, you
+   will have to ensure this constraint is not violated yourself.
+
+4. Because each new simulation has to go through a couple of warmup phases,
+   calling ~.reset()~ (resp ~.start()~) on a ~EnergyPlusEnvironment~ (resp.
+   ~EnergyPlusSimulation~) will take a couple of seconds. When doing reinforcement
+   learning, it might be a good idea to ge longer episodes. The
+   ~EnergyPlusSimulation~ constructor has a ~max_step~ field to control this.
