@@ -2,7 +2,7 @@
 #+title: Minergym
 
 =minergym= aims to make it easy to create a gymnasium-compatible environment from
-energyplus.
+an energyplus building file.
 
 * Example
 
@@ -216,3 +216,18 @@ obs, info = gymenv.reset()
    ~EnergyPlusSimulation~) will take a couple of seconds. When doing reinforcement
    learning, it might be a good idea to ge longer episodes. The
    ~EnergyPlusSimulation~ constructor has a ~max_step~ field to control this.
+
+5. For a ~MeterHole~ to work, the corresponding meter usually has to be added (if
+   it is not already there) to the =epJSON= building file. For instance, to use
+   the =Electricity:HVAC= meter in an environment we had to add it to the list of
+   meters in =crawlspace.epJSON=. Here is what you would add to the toplevel json
+   object:
+
+   #+begin_src json
+"Output:Meter": {
+    "Electricity:HVAC": {
+        "key_name": "*",
+        "reporting_frequency": "Timestep"
+    }
+}
+   #+end_src

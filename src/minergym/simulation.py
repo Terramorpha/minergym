@@ -24,18 +24,18 @@ class SimulationCrashed(Exception):
     pass
 
 
-@dataclass
+@dataclass(frozen=True, slots=True)
 class _StepResult:
     observation: typing.Any
     finished: bool
 
 
-@dataclass
+@dataclass(frozen=True, slots=True)
 class _DoneResult:
     exit_code: int
 
 
-@dataclass
+@dataclass(frozen=True, slots=True)
 class _ExceptionResult:
     tb: traceback.TracebackException
     exn: Exception
@@ -44,13 +44,13 @@ class _ExceptionResult:
 _Result = typing.Union[_StepResult, _DoneResult, _ExceptionResult]
 
 
-@dataclass
+@dataclass(frozen=True, slots=True)
 class VariableHole:
     variable_name: str
     variable_key: str
 
 
-@dataclass
+@dataclass(frozen=True, slots=True)
 class VariableHandle:
     handle: int
 
@@ -59,14 +59,14 @@ class InvalidVariable(Exception):
     pass
 
 
-@dataclass
+@dataclass(frozen=True, slots=True)
 class ActuatorHole:
     component_type: str
     control_type: str
     actuator_key: str
 
 
-@dataclass
+@dataclass(frozen=True, slots=True)
 class ActuatorHandle:
     handle: int
 
@@ -75,14 +75,12 @@ class InvalidActuator(Exception):
     pass
 
 
-@dataclass
+@dataclass(frozen=True, slots=True)
 class MeterHole:
-    """Works like variable, but inner contains only a str."""
-
     meter_name: str
 
 
-@dataclass
+@dataclass(frozen=True, slots=True)
 class MeterHandle:
     handle: int
 
@@ -91,21 +89,10 @@ class InvalidMeter(Exception):
     pass
 
 
-@dataclass
+@dataclass(frozen=True, slots=True)
 class FunctionHole:
-    """Function(f) will be replaced by f(state) at each timestep"""
+    function: typing.Callable[[int], typing.Any]
 
-    inner: typing.Any
-
-
-ActuatorThingy = collections.namedtuple(
-    "ActuatorThingy",
-    [
-        "component_type",
-        "control_type",
-        "actuator_key",
-    ],
-)
 
 T = typing.TypeVar("T")
 
@@ -164,7 +151,7 @@ class EnergyPlusSimulation:
     """A PyTree containing `Variable` and `Meter` leaves."""
     observation_template: typing.Any
 
-    actuators: typing.Dict[str, ActuatorThingy]
+    actuators: typing.Dict[str, ActuatorHole]
 
     """ A PyTree of the same shape, but containing the associated handles."""
     observation_handles: typing.Any = None
@@ -206,7 +193,7 @@ class EnergyPlusSimulation:
                 return
 
             if self.observation_handles is None:
-                self.construct_handles()
+                self.construct_handles(state)
 
             # We replace each Variable handle by its value,
             var_replaced = template.search_replace(
@@ -232,12 +219,12 @@ class EnergyPlusSimulation:
             function_replaced = template.search_replace(
                 actuator_replaced,
                 FunctionHole,
-                lambda fn: fn.inner(self.state),
+                lambda fn: fn.function(state),
             )
             obs = function_replaced
 
             if not (self.n_steps < self.max_steps):
-                api.runtime.stop_simulation(self.state)
+                api.runtime.stop_simulation(state)
                 return
             self.obs_chan.put(
                 _StepResult(
@@ -260,19 +247,21 @@ class EnergyPlusSimulation:
             self.n_steps += 1
 
         except Exception as e:
-            api.runtime.stop_simulation(self.state)
+            api.runtime.stop_simulation(state)
             tb_exc = traceback.TracebackException.from_exception(e)
             self.obs_chan.put(_ExceptionResult(tb_exc, e))
 
-    def construct_handles(self) -> None:
-        print("constructing handles")
+    def construct_handles(self, state: int) -> None:
+        if self.verbose:
+            print("constructing handles")
+
         # Most of Variable, Meter, Actuator need to be converted (by a
         # running simulation) into a not-so-human-readable numerical handle.
         # This is what we do here.
 
         def get_var_handle(var: VariableHole) -> VariableHandle:
             han = api.exchange.get_variable_handle(
-                self.state,
+                state,
                 var.variable_name,
                 var.variable_key,
             )
@@ -287,7 +276,7 @@ class EnergyPlusSimulation:
         )
 
         def get_meter_handle(met: MeterHole) -> MeterHandle:
-            han = api.exchange.get_meter_handle(self.state, met.meter_name)
+            han = api.exchange.get_meter_handle(state, met.meter_name)
             if han < 0:
                 raise InvalidMeter(met)
             return MeterHandle(han)
@@ -300,7 +289,7 @@ class EnergyPlusSimulation:
 
         def get_actuator_handle(act: ActuatorHole) -> ActuatorHandle:
             han = api.exchange.get_actuator_handle(
-                self.state,
+                state,
                 act.component_type,
                 act.control_type,
                 act.actuator_key,
@@ -317,18 +306,21 @@ class EnergyPlusSimulation:
         self.observation_handles = with_actuator_handles
 
         for k, act in self.actuators.items():
-            han = api.exchange.get_actuator_handle(self.state, *act)
+            han = api.exchange.get_actuator_handle(
+                state, act.component_type, act.control_type, act.actuator_key
+            )
             self.actuator_handles[k] = han
 
     def start(self) -> typing.Tuple[typing.Any, bool]:
-        self.state = api.state_manager.new_state()
+        state = api.state_manager.new_state()
+        self.state = state
 
         def eplus_thread():
             """Thread running the energyplus simulation."""
             exit_code = None
             try:
                 exit_code = api.runtime.run_energyplus(
-                    self.state,
+                    state,
                     [
                         "-d",
                         self.log_dir,
@@ -342,7 +334,7 @@ class EnergyPlusSimulation:
                 tb_exc = traceback.TracebackException.from_exception(e)
                 self.obs_chan.put(_ExceptionResult(tb_exc, e))
             finally:
-                api.state_manager.delete_state(self.state)
+                api.state_manager.delete_state(state)
                 del self.state
                 self.obs_chan.close()
                 self.act_chan.close()
@@ -352,24 +344,26 @@ class EnergyPlusSimulation:
             self.observation_template,
             VariableHole,
             lambda var: api.exchange.request_variable(
-                self.state,
+                state,
                 var.variable_name,
                 var.variable_key,
             ),
         )
 
         api.runtime.callback_begin_system_timestep_before_predictor(
-            self.state, self.callback_timestep
+            state, self.callback_timestep
         )
 
         def warmup_callback(state: int):
-            print("warmup complete")
+            if self.verbose:
+                print("warmup phase complete")
+
             self.number_of_warmup_phases_completed += 1
 
-        api.runtime.set_console_output_status(self.state, self.verbose)
+        api.runtime.set_console_output_status(state, self.verbose)
 
         api.runtime.callback_after_new_environment_warmup_complete(
-            self.state, warmup_callback
+            state, warmup_callback
         )
 
         thread = threading.Thread(target=eplus_thread, daemon=True)
@@ -388,10 +382,6 @@ class EnergyPlusSimulation:
             else:
                 return ({}, True)
         elif isinstance(result, _ExceptionResult):
-            # print("Original traceback from energyplus thread:")
-            # for line in result.tb.format(chain=True):
-            #     print(line, end="")
-
             raise result.exn
         else:
             raise Exception(
@@ -405,11 +395,22 @@ class EnergyPlusSimulation:
         self.act_chan.put(action)
         return self._get_obs_and_filter()
 
-    def get_api_endpoints(self):
+    def get_api_endpoints(
+        self,
+    ) -> typing.List[typing.Union[ActuatorHole, VariableHole, MeterHole]]:
         exchange_points = api.exchange.get_api_data(self.state)
 
-        def extract(v):
-            return [v.key, v.name, v.type, v.what]
+        out: typing.List[typing.Union[ActuatorHole, VariableHole, MeterHole]] = []
+        for v in exchange_points:
+            if v.what == "Actuator":
+                out.append(ActuatorHole(v.name, v.type, v.key))
+            elif v.what == "OutputVariable":
+                out.append(VariableHole(v.name, v.key))
+            elif v.what == "OutputMeter":
+                out.append(MeterHole(v.key))
+            elif v.what == "InternalVariable":
+                continue
+            else:
+                raise RuntimeError("Unreachable")
 
-        t = list(map(extract, exchange_points))
-        return t
+        return out

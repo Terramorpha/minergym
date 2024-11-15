@@ -13,51 +13,23 @@ This module collects functions useful to creates those 4-tuples.
 
 """
 
-import collections
 import minergym.query_info as query_info
 import rdflib
 import typing
 import minergym.simulation as simulation
 
 
-SimulationConfig = collections.namedtuple(
-    "SimulationConfig",
-    [
-        "building_file",
-        "weather_file",
-        "observation_template",
-        "actuators",
-    ],
-)
-
-
 def auto_get_actuators(
     rdf: rdflib.Graph,
-) -> typing.Dict[str, simulation.ActuatorThingy]:
+) -> typing.Dict[str, simulation.ActuatorHole]:
     """Add all actuators listed in the graph. This is probably not what you
     want, since actuators that are not heating/cooling setpoints will be added
     too."""
     act = {}
     for name in query_info.rdf_schedules(rdf):
         # for name in zones_with_cooling
-        act[name] = simulation.ActuatorThingy(
-            "Schedule:Compact", "Schedule Value", name
-        )
+        act[name] = simulation.ActuatorHole("Schedule:Compact", "Schedule Value", name)
     return act
-
-
-def auto_add_actuators_observation(
-    rdf: rdflib.Graph, obs_template: typing.Dict[str, typing.Any]
-) -> None:
-    act = {}
-    for name in query_info.rdf_schedules(rdf):
-        # for name in zones_with_cooling
-        act[name] = simulation.ActuatorHole(
-            "Schedule:Compact",
-            "Schedule Value",
-            name,
-        )
-    obs_template["actuators"] = act
 
 
 def auto_add_temperature(

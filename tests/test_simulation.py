@@ -88,3 +88,16 @@ def test_simulation_missing_file() -> None:
 
     with pytest.raises(simulation.SimulationCrashed):
         sim.start()
+
+
+def test_simulation_repr() -> None:
+    sim = simulation.EnergyPlusSimulation(crawlspace, honolulu, {}, {})
+    print(sim)
+
+
+def test_get_api_endpoints() -> None:
+    sim = simulation.EnergyPlusSimulation(crawlspace, honolulu, {}, {})
+    sim.start()
+
+    # Will crash is some unknown api object is encountered
+    sim.get_api_endpoints()
