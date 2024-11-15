@@ -7,7 +7,7 @@ trouble to any gymnasium consumer.
 
 
 import typing
-import clean_energyplus.simulation as simulation
+import minergym.simulation as simulation
 import gymnasium
 
 

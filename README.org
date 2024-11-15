@@ -1,14 +1,14 @@
 #+language: en
-#+title: Clean Energyplus
+#+title: Minergym
 
-=clean-energyplus= aims to make it easy to create a gymnasium-compatible
-environment from energyplus.
+=minergym= aims to make it easy to create a gymnasium-compatible environment from
+energyplus.
 
 * Example
 
 #+begin_src python :session :results none
 import sys
-# clean_energyplus must have access to the energyplus python api.
+# minergym must have access to the energyplus python api.
 sys.path.append("/usr/local/energyplus-24.1")
 
 import numpy as np
@@ -16,17 +16,17 @@ import gymnasium.spaces as spaces
 import typing
 
 # Exports EnergyPlusSimulation
-import clean_energyplus.simulation as simulation
+import minergym.simulation as simulation
 # automatically generates observation_template objects
-import clean_energyplus.config as config
+import minergym.config as config
 # points to building files shipped with the library
-import clean_energyplus.data.building as building
+import minergym.data.building as building
 # points to weather files
-import clean_energyplus.data.weather as weather
+import minergym.data.weather as weather
 # extracts information from epJSON files
-import clean_energyplus.query_info as query_info
+import minergym.query_info as query_info
 # wraps a simulation into a gym environment
-import clean_energyplus.environment as environment
+import minergym.environment as environment
 
 building_file = building.crawlspace
 weather_file = weather.honolulu
@@ -159,11 +159,11 @@ obs, info = gymenv.reset()
    3. convert it to the =epJSON= format using
       =$ENERGYPLUS_PATH/bin/ConvertInputFormat=.
 
-3. Use the ~clean_energyplus.query_info.rdf_from_json~ function to parse the
+3. Use the ~minergym.query_info.rdf_from_json~ function to parse the
    building file. It gives you an rdf representation of every entity which will
    be useful for the procedures in =config= to generate an observation template.
 
-4. Use the ~clean_energyplus.config~ module to create an observation template (use
+4. Use the ~minergym.config~ module to create an observation template (use
    the ~auto_add_*~ functions on an empty dict) and use ~auto_get_actuators~ to list
    the actuators you want to control.
 
@@ -173,7 +173,7 @@ obs, info = gymenv.reset()
 
 6. With the path to the =building.epJSON= file, the path to the =weather.epw= file,
    the observation template and the dict of actuators, create a
-   ~clean_energyplus.simulation.EnergyPlusSimulation~ object, ~start~ it to make
+   ~minergym.simulation.EnergyPlusSimulation~ object, ~start~ it to make
    sure the simulation is launching correctly.
 
 7. Once the simulation runs, we need a couple more components to wrap it in a
@@ -187,7 +187,7 @@ obs, info = gymenv.reset()
    5. A reward function computed from an ~observation_template~-shaped object.
 
 8. With those components, you can create a
-   ~clean_energyplus.environmnet.EnergyPlusEnvironment~ object.
+   ~minergym.environmnet.EnergyPlusEnvironment~ object.
 
 9. Do a couple of ~env.step(env.action_space.sample())~ iterations to make sure
    your functions work correctly.
@@ -208,7 +208,7 @@ obs, info = gymenv.reset()
 
 3. When you give the simulation a heating setpoint higher than the cooling
    setpoint in the same zones, the simulation will crash. Because
-   =clean_energyplus= isn't able to make sense of which actuator means what, you
+   =minergym= isn't able to make sense of which actuator means what, you
    will have to ensure this constraint is not violated yourself.
 
 4. Because each new simulation has to go through a couple of warmup phases,

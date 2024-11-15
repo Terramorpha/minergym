@@ -1,8 +1,19 @@
-import clean_energyplus.simulation as simulation
-from clean_energyplus.data.building import crawlspace
-from clean_energyplus.data.weather import honolulu
+import minergym.simulation as simulation
+from minergym.data.building import crawlspace
+from minergym.data.weather import honolulu
 from importlib import resources
 import pytest
+
+
+def test_simulation_separate() -> None:
+    sim1 = simulation.EnergyPlusSimulation(
+        crawlspace, honolulu, None, {}, max_steps=100
+    )
+    sim2 = simulation.EnergyPlusSimulation(
+        crawlspace, honolulu, None, {}, max_steps=100
+    )
+
+    assert sim1.obs_chan is not sim2.obs_chan
 
 
 def test_simulation_runs() -> None:
@@ -52,7 +63,6 @@ def test_simulation_invalid_meter() -> None:
         obs, done = sim.start()
 
 
-@pytest.mark.skip(reason="I don't know how to manage the double warmup problem")
 def test_simulation_time() -> None:
     obs = {}
     obs["current_time"] = simulation.FunctionHole(simulation.api.exchange.current_time)
@@ -60,9 +70,10 @@ def test_simulation_time() -> None:
 
     sim = simulation.EnergyPlusSimulation(crawlspace, honolulu, obs, {}, max_steps=1000)
     obs, done = sim.start()
-    while not done:
+    while True:
         new_obs, done = sim.step({})
-
+        if done:
+            break
         # We would expect the day of year to go up linearly. However, this is
         # not currently (2024-11-11T12:34:20) the case. It seems that after the
         # initial warmup is done, a single day will pass (day 202) before a
@@ -70,3 +81,10 @@ def test_simulation_time() -> None:
         # real RunPeriod (day 1).
         assert new_obs["day_of_year"] - obs["day_of_year"] in [0, 1]
         obs = new_obs
+
+
+def test_simulation_missing_file() -> None:
+    sim = simulation.EnergyPlusSimulation("does_not_exist", honolulu, {}, {})
+
+    with pytest.raises(simulation.SimulationCrashed):
+        sim.start()

@@ -1,4 +1,4 @@
-import clean_energyplus.template as template
+import minergym.template as template
 from dataclasses import dataclass
 
 

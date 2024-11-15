@@ -9,15 +9,19 @@ This module only cares about control.
 
 import pyenergyplus.api
 import threading
-import clean_energyplus.template as template
+import minergym.template as template
 import collections
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import typing
 import queue
 import pathlib
 import traceback
 
 api = pyenergyplus.api.EnergyPlusAPI()
+
+
+class SimulationCrashed(Exception):
+    pass
 
 
 @dataclass
@@ -137,56 +141,53 @@ class Channel(typing.Generic[T]):
         return wait_q.get()
 
     def close(self) -> None:
+        """Close the channel. In python 3.13, we will be able to call
+        .shutdown() on a queue, which will remove the possible race condition
+        that happens when .close() is run at the same time as .put() or .get().
+        """
+
         assert not self.closed
         self.closed = True
 
 
+@dataclass(slots=True)
 class EnergyPlusSimulation:
 
-    """The building file used for the simulation"""
+    """"""
 
+    """The building file used for the simulation."""
     building_path: str
-    """The weather file used for the simulation"""
+
+    """The weather file used for the simulation."""
     weather_path: str
 
     """A PyTree containing `Variable` and `Meter` leaves."""
-    observation_template: typing.Any = None
-
-    """ A PyTree of the same shape, but containing the associated handles"""
-    observation_handles: typing.Any = None
-
-    obs_chan: Channel
-    act_chan: Channel
-
-    max_steps: int
+    observation_template: typing.Any
 
     actuators: typing.Dict[str, ActuatorThingy]
 
-    log_dir: str
-
-    state: int
+    """ A PyTree of the same shape, but containing the associated handles."""
+    observation_handles: typing.Any = None
 
     number_of_warmup_phases_completed: int = 0
 
-    def __init__(
-        self,
-        building: str,
-        weather: str,
-        observation_template: typing.Any,
-        actuators: typing.Dict[str, ActuatorThingy],
-        max_steps=10_000,
-        log_dir: str = "eplus_output",
-    ):
-        self.obs_chan = Channel()
-        self.act_chan = Channel()
+    n_steps: int = field(default=0, init=False)
 
-        self.building_path = building
-        self.weather_path = weather
-        self.observation_template = observation_template
-        self.actuators = actuators
-        self.max_steps = max_steps
-        self.n_steps = 0
-        self.log_dir = log_dir
+    """The amount of steps before the simulation exits."""
+    max_steps: int = 10_000
+
+    """The directory in which energyplus will write its log files."""
+    log_dir: str = "eplus_output"
+
+    """Wether to let energyplus print a bunch of stuff to stdout."""
+    verbose: bool = True
+
+    actuator_handles: typing.Dict[str, int] = field(default_factory=dict)
+
+    obs_chan: Channel = field(default_factory=Channel)
+    act_chan: Channel = field(default_factory=Channel)
+
+    state: typing.Union[None, int] = field(default=None, init=False)
 
     def callback_timestep(self, state: int) -> None:
         try:
@@ -315,7 +316,6 @@ class EnergyPlusSimulation:
         )
         self.observation_handles = with_actuator_handles
 
-        self.actuator_handles = {}
         for k, act in self.actuators.items():
             han = api.exchange.get_actuator_handle(self.state, *act)
             self.actuator_handles[k] = han
@@ -337,7 +337,6 @@ class EnergyPlusSimulation:
                         self.building_path,
                     ],
                 )
-                print(f"energyplus exited with code {exit_code}")
                 self.obs_chan.put(_DoneResult(exit_code))
             except Exception as e:
                 tb_exc = traceback.TracebackException.from_exception(e)
@@ -347,8 +346,6 @@ class EnergyPlusSimulation:
                 del self.state
                 self.obs_chan.close()
                 self.act_chan.close()
-
-                print(f"freed E+ memory")
 
         # We must request access to Variable before the simulation is started.
         template.search_replace(
@@ -369,12 +366,14 @@ class EnergyPlusSimulation:
             print("warmup complete")
             self.number_of_warmup_phases_completed += 1
 
+        api.runtime.set_console_output_status(self.state, self.verbose)
+
         api.runtime.callback_after_new_environment_warmup_complete(
             self.state, warmup_callback
         )
 
-        self.thread = threading.Thread(target=eplus_thread, daemon=True)
-        self.thread.start()
+        thread = threading.Thread(target=eplus_thread, daemon=True)
+        thread.start()
 
         return self._get_obs_and_filter()
 
@@ -383,7 +382,7 @@ class EnergyPlusSimulation:
             return (result.observation, result.finished)
         elif isinstance(result, _DoneResult):
             if result.exit_code != 0:
-                raise Exception(
+                raise SimulationCrashed(
                     "energyplus exited with an error. See the eplusout.err file"
                 )
             else:

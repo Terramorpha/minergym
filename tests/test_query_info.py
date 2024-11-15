@@ -1,6 +1,6 @@
 import rdflib
-import clean_energyplus.query_info as query_info
-import clean_energyplus.data.building as building
+import minergym.query_info as query_info
+import minergym.data.building as building
 
 
 def test_zones():

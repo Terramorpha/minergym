@@ -1,9 +1,9 @@
-import clean_energyplus.config as config
-import clean_energyplus.query_info as query_info
+import minergym.config as config
+import minergym.query_info as query_info
 import tests.test_data as test_data
-import clean_energyplus.simulation as simulation
-import clean_energyplus.data.building as building
-import clean_energyplus.data.weather as weather
+import minergym.simulation as simulation
+import minergym.data.building as building
+import minergym.data.weather as weather
 
 
 def test_full_config() -> None:

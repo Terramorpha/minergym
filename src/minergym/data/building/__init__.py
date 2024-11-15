@@ -1,6 +1,6 @@
 from importlib import resources
 
-_building_dir = resources.files("clean_energyplus.data.building")
+_building_dir = resources.files("minergym.data.building")
 
 crawlspace = str(_building_dir.joinpath("crawlspace.epJSON"))
 

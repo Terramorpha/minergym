@@ -1,5 +1,5 @@
-import clean_energyplus.data.building as building
-import clean_energyplus.data.weather as weather
+import minergym.data.building as building
+import minergym.data.weather as weather
 import os
 
 

@@ -14,10 +14,10 @@ This module collects functions useful to creates those 4-tuples.
 """
 
 import collections
-import clean_energyplus.query_info as query_info
+import minergym.query_info as query_info
 import rdflib
 import typing
-import clean_energyplus.simulation as simulation
+import minergym.simulation as simulation
 
 
 SimulationConfig = collections.namedtuple(

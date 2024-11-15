@@ -1,7 +1,7 @@
-import clean_energyplus.simulation as simulation
-import clean_energyplus.environment as environment
-from clean_energyplus.data.building import crawlspace
-from clean_energyplus.data.weather import honolulu
+import minergym.simulation as simulation
+import minergym.environment as environment
+from minergym.data.building import crawlspace
+from minergym.data.weather import honolulu
 
 import gymnasium
 import numpy as np
