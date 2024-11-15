@@ -23548,7 +23548,7 @@
     "Output:Meter": {
         "Electricity:HVAC": {
             "key_name": "*",
-            "reporting_frequency": "Hourly"
+            "reporting_frequency": "Timestep"
         }
     }
 }
