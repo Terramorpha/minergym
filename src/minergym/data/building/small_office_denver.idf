@@ -132,8 +132,8 @@
     1,                       !- Begin Month
     1,                       !- Begin Day of Month
     ,                        !- Begin Year
-    1,                       !- End Month
-    3,                      !- End Day of Month
+    12,                       !- End Month
+    31,                      !- End Day of Month
     ,                        !- End Year
     Sunday,                  !- Day of Week for Start Day
     No,                      !- Use Weather File Holidays and Special Days
@@ -808,18 +808,75 @@
     Until: 24:00,1.0;        !- Field 3
 
   Schedule:Compact,
-    HTGSETP_SCH_OFF,         !- Name
+    Core_Zn_HTGSETP_SCH,         !- Name
     Temperature,             !- Schedule Type Limits Name
     THROUGH: 12/31,         !- Field 1
     FOR: AllDays,           !- Field 2
     UNTIL: 24:00, 20.0;      !- Field 3
 
-Schedule:Compact,
-    CLGSETP_SCH_OFF,         !- Name
+  Schedule:Compact,
+    Core_Zn_CLGSETP_SCH,         !- Name
     Temperature,             !- Schedule Type Limits Name
     THROUGH: 12/31,         !- Field 1
     FOR: AllDays,           !- Field 2
     UNTIL: 24:00, 26.0;      !- Field 3
+
+  Schedule:Compact,
+    Perimeter_Zn_1_HTGSETP_SCH,         !- Name
+    Temperature,             !- Schedule Type Limits Name
+    THROUGH: 12/31,         !- Field 1
+    FOR: AllDays,           !- Field 2
+    UNTIL: 24:00, 20.0;      !- Field 3
+
+  Schedule:Compact,
+    Perimeter_Zn_1_CLGSETP_SCH,         !- Name
+    Temperature,             !- Schedule Type Limits Name
+    THROUGH: 12/31,         !- Field 1
+    FOR: AllDays,           !- Field 2
+    UNTIL: 24:00, 26.0;      !- Field 3
+
+  Schedule:Compact,
+    Perimeter_Zn_2_HTGSETP_SCH,         !- Name
+    Temperature,             !- Schedule Type Limits Name
+    THROUGH: 12/31,         !- Field 1
+    FOR: AllDays,           !- Field 2
+    UNTIL: 24:00, 20.0;      !- Field 3
+
+  Schedule:Compact,
+    Perimeter_Zn_2_CLGSETP_SCH,         !- Name
+    Temperature,             !- Schedule Type Limits Name
+    THROUGH: 12/31,         !- Field 1
+    FOR: AllDays,           !- Field 2
+    UNTIL: 24:00, 26.0;      !- Field 3
+
+  Schedule:Compact,
+    Perimeter_Zn_3_HTGSETP_SCH,         !- Name
+    Temperature,             !- Schedule Type Limits Name
+    THROUGH: 12/31,         !- Field 1
+    FOR: AllDays,           !- Field 2
+    UNTIL: 24:00, 20.0;      !- Field 3
+
+  Schedule:Compact,
+    Perimeter_Zn_3_CLGSETP_SCH,         !- Name
+    Temperature,             !- Schedule Type Limits Name
+    THROUGH: 12/31,         !- Field 1
+    FOR: AllDays,           !- Field 2
+    UNTIL: 24:00, 26.0;      !- Field 3
+
+  Schedule:Compact,
+    Perimeter_Zn_4_HTGSETP_SCH,         !- Name
+    Temperature,             !- Schedule Type Limits Name
+    THROUGH: 12/31,         !- Field 1
+    FOR: AllDays,           !- Field 2
+    UNTIL: 24:00, 20.0;      !- Field 3
+
+  Schedule:Compact,
+    Perimeter_Zn_4_CLGSETP_SCH,         !- Name
+    Temperature,             !- Schedule Type Limits Name
+    THROUGH: 12/31,         !- Field 1
+    FOR: AllDays,           !- Field 2
+    UNTIL: 24:00, 26.0;      !- Field 3
+
 
 
   Schedule:Compact,
@@ -1275,74 +1332,69 @@ Schedule:Compact,
     Until: 24:00,0.5;        !- Field 7
 
   Schedule:Compact,
-    Core_Zn_Supply_Temp_Sch,
-    Temperature,
-    THROUGH: 12/31,
-    FOR: AllDays,
-    UNTIL: 24:00, 35.0;
-
-  Schedule:Compact,
-    Perimeter_Zn_1_Supply_Temp_Sch,
-    Temperature,
-    THROUGH: 12/31,
-    FOR: AllDays,
-    UNTIL: 24:00, 35.0;
-
-  Schedule:Compact,
-    Perimeter_Zn_2_Supply_Temp_Sch,
-    Temperature,
-    THROUGH: 12/31,
-    FOR: AllDays,
-    UNTIL: 24:00, 35.0;
-
-  Schedule:Compact,
-    Perimeter_Zn_3_Supply_Temp_Sch,
-    Temperature,
-    THROUGH: 12/31,
-    FOR: AllDays,
-    UNTIL: 24:00, 35.0;
-
-  Schedule:Compact,
-    Perimeter_Zn_4_Supply_Temp_Sch,
-    Temperature,
-    THROUGH: 12/31,
-    FOR: AllDays,
-    UNTIL: 24:00, 35.0;
-
-  Schedule:Compact,
     Core_Zn_HVACOperationSchd,       !- Name
     on/off,                  !- Schedule Type Limits Name
-    THROUGH: 12/31,
-    FOR: AllDays,
-    UNTIL: 24:00, 1.0;
+    Through: 12/31,          !- Field 1
+    For: Weekdays SummerDesignDay, !- Field 2
+    Until: 06:00,0.0,        !- Field 3
+    Until: 19:00,1.0,        !- Field 5
+    Until: 24:00,0.0,        !- Field 7
+    For: Weedends WinterDesignDay, !- Field 9
+    Until: 24:00,0.0,        !- Field 10
+    For: Holidays AllOtherDays, !- Field 12
+    Until: 24:00,0.0;        !- Field 13
 
   Schedule:Compact,
     Perimeter_Zn_1_HVACOperationSchd,       !- Name
     on/off,                  !- Schedule Type Limits Name
-    THROUGH: 12/31,
-    FOR: AllDays,
-    UNTIL: 24:00, 1.0;
+    Through: 12/31,          !- Field 1
+    For: Weekdays SummerDesignDay, !- Field 2
+    Until: 06:00,0.0,        !- Field 3
+    Until: 19:00,1.0,        !- Field 5
+    Until: 24:00,0.0,        !- Field 7
+    For: Weedends WinterDesignDay, !- Field 9
+    Until: 24:00,0.0,        !- Field 10
+    For: Holidays AllOtherDays, !- Field 12
+    Until: 24:00,0.0;        !- Field 13
 
   Schedule:Compact,
     Perimeter_Zn_2_HVACOperationSchd,       !- Name
     on/off,                  !- Schedule Type Limits Name
-    THROUGH: 12/31,
-    FOR: AllDays,
-    UNTIL: 24:00, 1.0;
+    Through: 12/31,          !- Field 1
+    For: Weekdays SummerDesignDay, !- Field 2
+    Until: 06:00,0.0,        !- Field 3
+    Until: 19:00,1.0,        !- Field 5
+    Until: 24:00,0.0,        !- Field 7
+    For: Weedends WinterDesignDay, !- Field 9
+    Until: 24:00,0.0,        !- Field 10
+    For: Holidays AllOtherDays, !- Field 12
+    Until: 24:00,0.0;        !- Field 13
 
   Schedule:Compact,
     Perimeter_Zn_3_HVACOperationSchd,       !- Name
     on/off,                  !- Schedule Type Limits Name
-    THROUGH: 12/31,
-    FOR: AllDays,
-    UNTIL: 24:00, 1.0;
+    Through: 12/31,          !- Field 1
+    For: Weekdays SummerDesignDay, !- Field 2
+    Until: 06:00,0.0,        !- Field 3
+    Until: 19:00,1.0,        !- Field 5
+    Until: 24:00,0.0,        !- Field 7
+    For: Weedends WinterDesignDay, !- Field 9
+    Until: 24:00,0.0,        !- Field 10
+    For: Holidays AllOtherDays, !- Field 12
+    Until: 24:00,0.0;        !- Field 13
 
   Schedule:Compact,
     Perimeter_Zn_4_HVACOperationSchd,       !- Name
     on/off,                  !- Schedule Type Limits Name
-    THROUGH: 12/31,
-    FOR: AllDays,
-    UNTIL: 24:00, 1.0;
+    Through: 12/31,          !- Field 1
+    For: Weekdays SummerDesignDay, !- Field 2
+    Until: 06:00,0.0,        !- Field 3
+    Until: 19:00,1.0,        !- Field 5
+    Until: 24:00,0.0,        !- Field 7
+    For: Weedends WinterDesignDay, !- Field 9
+    Until: 24:00,0.0,        !- Field 10
+    For: Holidays AllOtherDays, !- Field 12
+    Until: 24:00,0.0;        !- Field 13
 
 !-   ===========  ALL OBJECTS IN CLASS: MATERIAL ===========
 
@@ -3996,28 +4048,28 @@ Schedule:Compact,
 
   ThermostatSetpoint:DualSetpoint,
     Core_ZN DualSPSched,     !- Name
-    HTGSETP_SCH_OFF,  !- Heating Setpoint Temperature Schedule Name
-    CLGSETP_SCH_OFF;  !- Cooling Setpoint Temperature Schedule Name
+    Core_Zn_HTGSETP_SCH,  !- Heating Setpoint Temperature Schedule Name
+    Core_Zn_CLGSETP_SCH;  !- Cooling Setpoint Temperature Schedule Name
 
   ThermostatSetpoint:DualSetpoint,
     Perimeter_ZN_1 DualSPSched,  !- Name
-    HTGSETP_SCH_OFF,  !- Heating Setpoint Temperature Schedule Name
-    CLGSETP_SCH_OFF;  !- Cooling Setpoint Temperature Schedule Name
+    Perimeter_Zn_1_HTGSETP_SCH,  !- Heating Setpoint Temperature Schedule Name
+    Perimeter_Zn_1_CLGSETP_SCH;  !- Cooling Setpoint Temperature Schedule Name
 
   ThermostatSetpoint:DualSetpoint,
     Perimeter_ZN_2 DualSPSched,  !- Name
-    HTGSETP_SCH_OFF,  !- Heating Setpoint Temperature Schedule Name
-    CLGSETP_SCH_OFF;  !- Cooling Setpoint Temperature Schedule Name
+    Perimeter_Zn_2_HTGSETP_SCH,  !- Heating Setpoint Temperature Schedule Name
+    Perimeter_Zn_2_CLGSETP_SCH;  !- Cooling Setpoint Temperature Schedule Name
 
   ThermostatSetpoint:DualSetpoint,
     Perimeter_ZN_3 DualSPSched,  !- Name
-    HTGSETP_SCH_OFF,  !- Heating Setpoint Temperature Schedule Name
-    CLGSETP_SCH_OFF;  !- Cooling Setpoint Temperature Schedule Name
+    Perimeter_Zn_3_HTGSETP_SCH,  !- Heating Setpoint Temperature Schedule Name
+    Perimeter_Zn_3_CLGSETP_SCH;  !- Cooling Setpoint Temperature Schedule Name
 
   ThermostatSetpoint:DualSetpoint,
     Perimeter_ZN_4 DualSPSched,  !- Name
-    HTGSETP_SCH_OFF,  !- Heating Setpoint Temperature Schedule Name
-    CLGSETP_SCH_OFF;  !- Cooling Setpoint Temperature Schedule Name
+    Perimeter_Zn_4_HTGSETP_SCH,  !- Heating Setpoint Temperature Schedule Name
+    Perimeter_Zn_4_CLGSETP_SCH;  !- Cooling Setpoint Temperature Schedule Name
 
 !-   ===========  ALL OBJECTS IN CLASS: AIRTERMINAL:SINGLEDUCT:CONSTANTVOLUME:NOREHEAT ===========
 
@@ -4345,9 +4397,9 @@ Schedule:Compact,
 
   Coil:Heating:Electric,
     PSZ-AC:1 Heat Pump DX Supp Heating Coil,  !- Name
-    ALWAYS_OFF,                                !- Availability Schedule Name
+    ALWAYS_ON,                                !- Availability Schedule Name
     0.99,                                     ! Efficiency
-    6000,                                   !- Nominal Capacity {W}
+    10000,                                   !- Nominal Capacity {W}
     PSZ-AC:1_HeatC-PSZ-AC:1_SuppHeatingNode,  !- Air Inlet Node Name
     PSZ-AC:1 Supply Equipment Outlet Node,    !- Air Outlet Node Name
     ;    !- Temperature Setpoint Node Name
@@ -4355,36 +4407,36 @@ Schedule:Compact,
 
   Coil:Heating:Electric,
     PSZ-AC:2 Heat Pump DX Supp Heating Coil,  !- Name
-    ALWAYS_OFF,                                !- Availability Schedule Name
+    ALWAYS_ON,                                !- Availability Schedule Name
     0.99,                                     ! Efficiency
-    6000,                                   !- Nominal Capacity {W}
+    10000,                                   !- Nominal Capacity {W}
     PSZ-AC:2_HeatC-PSZ-AC:2_SuppHeatingNode,  !- Air Inlet Node Name
     PSZ-AC:2 Supply Equipment Outlet Node,    !- Air Outlet Node Name
     ;    !- Temperature Setpoint Node Name
 
   Coil:Heating:Electric,
     PSZ-AC:3 Heat Pump DX Supp Heating Coil,  !- Name
-    ALWAYS_OFF,                                !- Availability Schedule Name
+    ALWAYS_ON,                                !- Availability Schedule Name
     0.99,                                     ! Efficiency
-    6000,                                   !- Nominal Capacity {W}
+    10000,                                   !- Nominal Capacity {W}
     PSZ-AC:3_HeatC-PSZ-AC:3_SuppHeatingNode,  !- Air Inlet Node Name
     PSZ-AC:3 Supply Equipment Outlet Node,    !- Air Outlet Node Name
     ;    !- Temperature Setpoint Node Name
 
   Coil:Heating:Electric,
     PSZ-AC:4 Heat Pump DX Supp Heating Coil,  !- Name
-    ALWAYS_OFF,                                !- Availability Schedule Name
+    ALWAYS_ON,                                !- Availability Schedule Name
     0.99,                                     ! Efficiency
-    6000,                                   !- Nominal Capacity {W}
+    10000,                                   !- Nominal Capacity {W}
     PSZ-AC:4_HeatC-PSZ-AC:4_SuppHeatingNode,  !- Air Inlet Node Name
     PSZ-AC:4 Supply Equipment Outlet Node,    !- Air Outlet Node Name
     ;    !- Temperature Setpoint Node Name
 
   Coil:Heating:Electric,
     PSZ-AC:5 Heat Pump DX Supp Heating Coil,  !- Name
-    ALWAYS_OFF,                                !- Availability Schedule Name
+    ALWAYS_ON,                                !- Availability Schedule Name
     0.99,                                     ! Efficiency
-    6000,                                   !- Nominal Capacity {W}
+    10000,                                   !- Nominal Capacity {W}
     PSZ-AC:5_HeatC-PSZ-AC:5_SuppHeatingNode,  !- Air Inlet Node Name
     PSZ-AC:5 Supply Equipment Outlet Node,    !- Air Outlet Node Name
     ;    !- Temperature Setpoint Node Name
@@ -5787,169 +5839,109 @@ Schedule:Compact,
     SHWSys1-Loop-Temp-Schedule,  !- Schedule Name
     SHWSys1 Supply Outlet Node;  !- Setpoint Node or NodeList Name
 
-  SetpointManager:Scheduled,
-    Core_Zn_Supply_Temp_Heat,  !- Name
-    Temperature,  !- Control Variable
-    Core_Zn_Supply_Temp_Sch,  !- Schedule Name
-    PSZ-AC:1 Supply Equipment Outlet Node;  !- Setpoint Node or NodeList Name
-
-  SetpointManager:Scheduled,
-    Core_Zn_Supply_Temp_Cool,  !- Name
-    Temperature,  !- Control Variable
-    Core_Zn_Supply_Temp_Sch,  !- Schedule Name
-    PSZ-AC:1_CoolC-PSZ-AC:1_HeatCNode;  !- Setpoint Node or NodeList Name
-
-  SetpointManager:Scheduled,
-    Perimeter_Zn_1_Supply_Temp_Heat,  !- Name
-    Temperature,  !- Control Variable
-    Perimeter_Zn_1_Supply_Temp_Sch,  !- Schedule Name
-    PSZ-AC:2 Supply Equipment Outlet Node;  !- Setpoint Node or NodeList Name
-
-  SetpointManager:Scheduled,
-    Perimeter_Zn_1_Supply_Temp_Cool,  !- Name
-    Temperature,  !- Control Variable
-    Perimeter_Zn_1_Supply_Temp_Sch,  !- Schedule Name
-    PSZ-AC:2_CoolC-PSZ-AC:2_HeatCNode;  !- Setpoint Node or NodeList Name
-
-  SetpointManager:Scheduled,
-    Perimeter_Zn_2_Supply_Temp_Heat,  !- Name
-    Temperature,  !- Control Variable
-    Perimeter_Zn_2_Supply_Temp_Sch,  !- Schedule Name
-    PSZ-AC:3 Supply Equipment Outlet Node;  !- Setpoint Node or NodeList Name
-
-  SetpointManager:Scheduled,
-    Perimeter_Zn_2_Supply_Temp_Cool,  !- Name
-    Temperature,  !- Control Variable
-    Perimeter_Zn_2_Supply_Temp_Sch,  !- Schedule Name
-    PSZ-AC:3_CoolC-PSZ-AC:3_HeatCNode;  !- Setpoint Node or NodeList Name
-
-  SetpointManager:Scheduled,
-    Perimeter_Zn_3_Supply_Temp_Heat,  !- Name
-    Temperature,  !- Control Variable
-    Perimeter_Zn_3_Supply_Temp_Sch,  !- Schedule Name
-    PSZ-AC:4 Supply Equipment Outlet Node;  !- Setpoint Node or NodeList Name
-
-  SetpointManager:Scheduled,
-    Perimeter_Zn_3_Supply_Temp_Cool,  !- Name
-    Temperature,  !- Control Variable
-    Perimeter_Zn_3_Supply_Temp_Sch,  !- Schedule Name
-    PSZ-AC:4_CoolC-PSZ-AC:4_HeatCNode;  !- Setpoint Node or NodeList Name
-
-  SetpointManager:Scheduled,
-    Perimeter_Zn_4_Supply_Temp_Heat,  !- Name
-    Temperature,  !- Control Variable
-    Perimeter_Zn_4_Supply_Temp_Sch,  !- Schedule Name
-    PSZ-AC:5 Supply Equipment Outlet Node;  !- Setpoint Node or NodeList Name
-
-  SetpointManager:Scheduled,
-    Perimeter_Zn_4_Supply_Temp_Cool,  !- Name
-    Temperature,  !- Control Variable
-    Perimeter_Zn_4_Supply_Temp_Sch,  !- Schedule Name
-    PSZ-AC:5_CoolC-PSZ-AC:5_HeatCNode;  !- Setpoint Node or NodeList Name
-
 !-   ===========  ALL OBJECTS IN CLASS: SETPOINTMANAGER:SINGLEZONE:HEATING ===========
 
-  !SetpointManager:SingleZone:Heating,
-  !  SupAirTemp MngrCore_Z - Htg,  !- Name
-  !  Temperature,             !- Control Variable
-  !  12.8,                    !- Minimum Supply Air Temperature {C}
-  !  40.0,                    !- Maximum Supply Air Temperature {C}
-  !  Core_ZN,                 !- Control Zone Name
-  !  Core_ZN Air Node,        !- Zone Node Name
-  !  Core_ZN Direct Air Inlet Node Name,  !- Zone Inlet Node Name
-  !  PSZ-AC:1 Supply Equipment Outlet Node;  !- Setpoint Node or NodeList Name
+  SetpointManager:SingleZone:Heating,
+    SupAirTemp MngrCore_Z - Htg,  !- Name
+    Temperature,             !- Control Variable
+    12.8,                    !- Minimum Supply Air Temperature {C}
+    40.0,                    !- Maximum Supply Air Temperature {C}
+    Core_ZN,                 !- Control Zone Name
+    Core_ZN Air Node,        !- Zone Node Name
+    Core_ZN Direct Air Inlet Node Name,  !- Zone Inlet Node Name
+    PSZ-AC:1 Supply Equipment Outlet Node;  !- Setpoint Node or NodeList Name
 
-  !SetpointManager:SingleZone:Heating,
-  !  SupAirTemp MngrPerimeter_ZN_1 - Htg,  !- Name
-  !  Temperature,             !- Control Variable
-  !  12.8,                    !- Minimum Supply Air Temperature {C}
-  !  40.0,                    !- Maximum Supply Air Temperature {C}
-  !  Perimeter_ZN_1,          !- Control Zone Name
-  !  Perimeter_ZN_1 Air Node, !- Zone Node Name
-  !  Perimeter_ZN_1 Direct Air Inlet Node Name,  !- Zone Inlet Node Name
-  !  PSZ-AC:2 Supply Equipment Outlet Node;  !- Setpoint Node or NodeList Name
+  SetpointManager:SingleZone:Heating,
+    SupAirTemp MngrPerimeter_ZN_1 - Htg,  !- Name
+    Temperature,             !- Control Variable
+    12.8,                    !- Minimum Supply Air Temperature {C}
+    40.0,                    !- Maximum Supply Air Temperature {C}
+    Perimeter_ZN_1,          !- Control Zone Name
+    Perimeter_ZN_1 Air Node, !- Zone Node Name
+    Perimeter_ZN_1 Direct Air Inlet Node Name,  !- Zone Inlet Node Name
+    PSZ-AC:2 Supply Equipment Outlet Node;  !- Setpoint Node or NodeList Name
 
-  !SetpointManager:SingleZone:Heating,
-  !  SupAirTemp MngrPerimeter_ZN_2 - Htg,  !- Name
-  !  Temperature,             !- Control Variable
-  !  12.8,                    !- Minimum Supply Air Temperature {C}
-  !  40.0,                    !- Maximum Supply Air Temperature {C}
-  !  Perimeter_ZN_2,          !- Control Zone Name
-  !  Perimeter_ZN_2 Air Node, !- Zone Node Name
-  !  Perimeter_ZN_2 Direct Air Inlet Node Name,  !- Zone Inlet Node Name
-  !  PSZ-AC:3 Supply Equipment Outlet Node;  !- Setpoint Node or NodeList Name
+  SetpointManager:SingleZone:Heating,
+    SupAirTemp MngrPerimeter_ZN_2 - Htg,  !- Name
+    Temperature,             !- Control Variable
+    12.8,                    !- Minimum Supply Air Temperature {C}
+    40.0,                    !- Maximum Supply Air Temperature {C}
+    Perimeter_ZN_2,          !- Control Zone Name
+    Perimeter_ZN_2 Air Node, !- Zone Node Name
+    Perimeter_ZN_2 Direct Air Inlet Node Name,  !- Zone Inlet Node Name
+    PSZ-AC:3 Supply Equipment Outlet Node;  !- Setpoint Node or NodeList Name
 
-  !SetpointManager:SingleZone:Heating,
-  !  SupAirTemp MngrPerimeter_ZN_3 - Htg,  !- Name
-  !  Temperature,             !- Control Variable
-  !  12.8,                    !- Minimum Supply Air Temperature {C}
-  !  40.0,                    !- Maximum Supply Air Temperature {C}
-  !  Perimeter_ZN_3,          !- Control Zone Name
-  !  Perimeter_ZN_3 Air Node, !- Zone Node Name
-  !  Perimeter_ZN_3 Direct Air Inlet Node Name,  !- Zone Inlet Node Name
-  !  PSZ-AC:4 Supply Equipment Outlet Node;  !- Setpoint Node or NodeList Name
+  SetpointManager:SingleZone:Heating,
+    SupAirTemp MngrPerimeter_ZN_3 - Htg,  !- Name
+    Temperature,             !- Control Variable
+    12.8,                    !- Minimum Supply Air Temperature {C}
+    40.0,                    !- Maximum Supply Air Temperature {C}
+    Perimeter_ZN_3,          !- Control Zone Name
+    Perimeter_ZN_3 Air Node, !- Zone Node Name
+    Perimeter_ZN_3 Direct Air Inlet Node Name,  !- Zone Inlet Node Name
+    PSZ-AC:4 Supply Equipment Outlet Node;  !- Setpoint Node or NodeList Name
 
-  !SetpointManager:SingleZone:Heating,
-  !  SupAirTemp MngrPerimeter_ZN_4 - Htg,  !- Name
-  !  Temperature,             !- Control Variable
-  !  12.8,                    !- Minimum Supply Air Temperature {C}
-  !  40.0,                    !- Maximum Supply Air Temperature {C}
-  !  Perimeter_ZN_4,          !- Control Zone Name
-  !  Perimeter_ZN_4 Air Node, !- Zone Node Name
-  !  Perimeter_ZN_4 Direct Air Inlet Node Name,  !- Zone Inlet Node Name
-  !  PSZ-AC:5 Supply Equipment Outlet Node;  !- Setpoint Node or NodeList Name
+  SetpointManager:SingleZone:Heating,
+    SupAirTemp MngrPerimeter_ZN_4 - Htg,  !- Name
+    Temperature,             !- Control Variable
+    12.8,                    !- Minimum Supply Air Temperature {C}
+    40.0,                    !- Maximum Supply Air Temperature {C}
+    Perimeter_ZN_4,          !- Control Zone Name
+    Perimeter_ZN_4 Air Node, !- Zone Node Name
+    Perimeter_ZN_4 Direct Air Inlet Node Name,  !- Zone Inlet Node Name
+    PSZ-AC:5 Supply Equipment Outlet Node;  !- Setpoint Node or NodeList Name
 
 !-   ===========  ALL OBJECTS IN CLASS: SETPOINTMANAGER:SINGLEZONE:COOLING ===========
 
-  !SetpointManager:SingleZone:Cooling,
-  !  SupAirTemp MngrCore_ZN - Clg,  !- Name
-  !  Temperature,             !- Control Variable
-  !  12.8,                    !- Minimum Supply Air Temperature {C}
-  !  40.0,                    !- Maximum Supply Air Temperature {C}
-  !  Core_ZN,                 !- Control Zone Name
-  !  Core_ZN Air Node,        !- Zone Node Name
-  !  Core_ZN Direct Air Inlet Node Name,  !- Zone Inlet Node Name
-  !  PSZ-AC:1_CoolC-PSZ-AC:1_HeatCNode;  !- Setpoint Node or NodeList Name
+  SetpointManager:SingleZone:Cooling,
+    SupAirTemp MngrCore_ZN - Clg,  !- Name
+    Temperature,             !- Control Variable
+    12.8,                    !- Minimum Supply Air Temperature {C}
+    40.0,                    !- Maximum Supply Air Temperature {C}
+    Core_ZN,                 !- Control Zone Name
+    Core_ZN Air Node,        !- Zone Node Name
+    Core_ZN Direct Air Inlet Node Name,  !- Zone Inlet Node Name
+    PSZ-AC:1_CoolC-PSZ-AC:1_HeatCNode;  !- Setpoint Node or NodeList Name
 
-  !SetpointManager:SingleZone:Cooling,
-  !  SupAirTemp MngrPerimeter_ZN_1 - Clg,  !- Name
-  !  Temperature,             !- Control Variable
-  !  12.8,                    !- Minimum Supply Air Temperature {C}
-  !  40.0,                    !- Maximum Supply Air Temperature {C}
-  !  Perimeter_ZN_1,          !- Control Zone Name
-  !  Perimeter_ZN_1 Air Node, !- Zone Node Name
-  !  Perimeter_ZN_1 Direct Air Inlet Node Name,  !- Zone Inlet Node Name
-  !  PSZ-AC:2_CoolC-PSZ-AC:2_HeatCNode;  !- Setpoint Node or NodeList Name
+  SetpointManager:SingleZone:Cooling,
+    SupAirTemp MngrPerimeter_ZN_1 - Clg,  !- Name
+    Temperature,             !- Control Variable
+    12.8,                    !- Minimum Supply Air Temperature {C}
+    40.0,                    !- Maximum Supply Air Temperature {C}
+    Perimeter_ZN_1,          !- Control Zone Name
+    Perimeter_ZN_1 Air Node, !- Zone Node Name
+    Perimeter_ZN_1 Direct Air Inlet Node Name,  !- Zone Inlet Node Name
+    PSZ-AC:2_CoolC-PSZ-AC:2_HeatCNode;  !- Setpoint Node or NodeList Name
 
-  !SetpointManager:SingleZone:Cooling,
-  !  SupAirTemp MngrPerimeter_ZN_2 - Clg,  !- Name
-  !  Temperature,             !- Control Variable
-  !  12.8,                    !- Minimum Supply Air Temperature {C}
-  !  40.0,                    !- Maximum Supply Air Temperature {C}
-  !  Perimeter_ZN_2,          !- Control Zone Name
-  !  Perimeter_ZN_2 Air Node, !- Zone Node Name
-  !  Perimeter_ZN_2 Direct Air Inlet Node Name,  !- Zone Inlet Node Name
-  !  PSZ-AC:3_CoolC-PSZ-AC:3_HeatCNode;  !- Setpoint Node or NodeList Name
+  SetpointManager:SingleZone:Cooling,
+    SupAirTemp MngrPerimeter_ZN_2 - Clg,  !- Name
+    Temperature,             !- Control Variable
+    12.8,                    !- Minimum Supply Air Temperature {C}
+    40.0,                    !- Maximum Supply Air Temperature {C}
+    Perimeter_ZN_2,          !- Control Zone Name
+    Perimeter_ZN_2 Air Node, !- Zone Node Name
+    Perimeter_ZN_2 Direct Air Inlet Node Name,  !- Zone Inlet Node Name
+    PSZ-AC:3_CoolC-PSZ-AC:3_HeatCNode;  !- Setpoint Node or NodeList Name
 
-  !SetpointManager:SingleZone:Cooling,
-  !  SupAirTemp MngrPerimeter_ZN_3 - Clg,  !- Name
-  !  Temperature,             !- Control Variable
-  !  12.8,                    !- Minimum Supply Air Temperature {C}
-  !  40.0,                    !- Maximum Supply Air Temperature {C}
-  !  Perimeter_ZN_3,          !- Control Zone Name
-  !  Perimeter_ZN_3 Air Node, !- Zone Node Name
-  !  Perimeter_ZN_3 Direct Air Inlet Node Name,  !- Zone Inlet Node Name
-  !  PSZ-AC:4_CoolC-PSZ-AC:4_HeatCNode;  !- Setpoint Node or NodeList Name
+  SetpointManager:SingleZone:Cooling,
+    SupAirTemp MngrPerimeter_ZN_3 - Clg,  !- Name
+    Temperature,             !- Control Variable
+    12.8,                    !- Minimum Supply Air Temperature {C}
+    40.0,                    !- Maximum Supply Air Temperature {C}
+    Perimeter_ZN_3,          !- Control Zone Name
+    Perimeter_ZN_3 Air Node, !- Zone Node Name
+    Perimeter_ZN_3 Direct Air Inlet Node Name,  !- Zone Inlet Node Name
+    PSZ-AC:4_CoolC-PSZ-AC:4_HeatCNode;  !- Setpoint Node or NodeList Name
 
-  !SetpointManager:SingleZone:Cooling,
-  !  SupAirTemp MngrPerimeter_ZN_4 - Clg,  !- Name
-  !  Temperature,             !- Control Variable
-  !  12.8,                    !- Minimum Supply Air Temperature {C}
-  !  40.0,                    !- Maximum Supply Air Temperature {C}
-  !  Perimeter_ZN_4,          !- Control Zone Name
-  !  Perimeter_ZN_4 Air Node, !- Zone Node Name
-  !  Perimeter_ZN_4 Direct Air Inlet Node Name,  !- Zone Inlet Node Name
-  !  PSZ-AC:5_CoolC-PSZ-AC:5_HeatCNode;  !- Setpoint Node or NodeList Name
+  SetpointManager:SingleZone:Cooling,
+    SupAirTemp MngrPerimeter_ZN_4 - Clg,  !- Name
+    Temperature,             !- Control Variable
+    12.8,                    !- Minimum Supply Air Temperature {C}
+    40.0,                    !- Maximum Supply Air Temperature {C}
+    Perimeter_ZN_4,          !- Control Zone Name
+    Perimeter_ZN_4 Air Node, !- Zone Node Name
+    Perimeter_ZN_4 Direct Air Inlet Node Name,  !- Zone Inlet Node Name
+    PSZ-AC:5_CoolC-PSZ-AC:5_HeatCNode;  !- Setpoint Node or NodeList Name
 
 !-   ===========  ALL OBJECTS IN CLASS: SETPOINTMANAGER:MIXEDAIR ===========
 
@@ -6476,19 +6468,6 @@ Schedule:Compact,
     Verbose,    ! Actuator Availability Dictionary Reporting
     Verbose,    ! Internal Variable Availability Dictionary Reporting
     ErrorsOnly; ! EnergyPlus Runtime Language Debug Output Level
-
-
-Meter:Custom,
-    PSZ-AC:1_HVAC_Consumption,  !- Name
-    Electricity,                !- Resource Type
-    Fans:Electricity,            !- Key Name 1
-    PSZ-AC:1 Fan,                !- Output Variable or Meter Name 1
-    CoolingCoils:Electricity,     !- Key Name 2
-    PSZ-AC:1 Heat Pump DX Cooling Coil,  !- Output Variable or Meter Name 2
-    HeatingCoils:Electricity,     !- Key Name 3
-    PSZ-AC:1 Heat Pump DX Heating Coil,  !- Output Variable or Meter Name 3
-    Heating:Electricity,          !- Key Name 4
-    PSZ-AC:1 Heat Pump DX Supp Heating Coil;  !- Output Variable or Meter Name 4
 
 
 !-   ===========  ALL OBJECTS IN CLASS: OUTPUT:VARIABLEDICTIONARY ===========
