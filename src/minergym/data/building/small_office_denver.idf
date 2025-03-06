@@ -132,8 +132,8 @@
     1,                       !- Begin Month
     1,                       !- Begin Day of Month
     ,                        !- Begin Year
-    12,                       !- End Month
-    31,                      !- End Day of Month
+    1,                       !- End Month
+    2,                      !- End Day of Month
     ,                        !- End Year
     Sunday,                  !- Day of Week for Start Day
     No,                      !- Use Weather File Holidays and Special Days
@@ -390,7 +390,137 @@
     Until: 24:00,0.0;        !- Field 39
 
   Schedule:Compact,
-    BLDG_OCC_SCH_w_SB,       !- Name
+    Core_Zn_OCC_SCH,      !- Name
+    Fraction,                !- Schedule Type Limits Name
+    Through: 12/31,          !- Field 1
+    For: Weekdays,           !- Field 2
+    Until: 01:00,0,          !- Field 3
+    Until: 02:00,0,          !- Field 5
+    Until: 03:00,0,          !- Field 7
+    Until: 04:00,0,          !- Field 9
+    Until: 05:00,0,          !- Field 11
+    Until: 06:00,0,          !- Field 13
+    Until: 07:00,0.11,       !- Field 15
+    Until: 08:00,0.21,       !- Field 17
+    Until: 09:00,1,          !- Field 19
+    Until: 10:00,1,          !- Field 21
+    Until: 11:00,1,          !- Field 23
+    Until: 12:00,1,          !- Field 25
+    Until: 13:00,0.610394505402463, !- Field 27
+    Until: 14:00,1,          !- Field 29
+    Until: 15:00,1,          !- Field 31
+    Until: 16:00,1,          !- Field 33
+    Until: 17:00,1,          !- Field 35
+    Until: 18:00,0.32,       !- Field 37
+    Until: 19:00,0.11,       !- Field 39
+    Until: 20:00,0.11,       !- Field 41
+    Until: 21:00,0.11,       !- Field 43
+    Until: 22:00,0.11,       !- Field 45
+    Until: 23:00,0.05,       !- Field 47
+    Until: 24:00,0,          !- Field 49
+    For: Weekends,           !- Field 51
+    Until: 01:00,0,          !- Field 52
+    Until: 02:00,0,          !- Field 54
+    Until: 03:00,0,          !- Field 56
+    Until: 04:00,0,          !- Field 58
+    Until: 05:00,0,          !- Field 60
+    Until: 06:00,0,          !- Field 62
+    Until: 07:00,0,          !- Field 64
+    Until: 08:00,0,          !- Field 66
+    Until: 09:00,0,          !- Field 68
+    Until: 10:00,0,          !- Field 70
+    Until: 11:00,0,          !- Field 72
+    Until: 12:00,0,          !- Field 74
+    Until: 13:00,0,          !- Field 76
+    Until: 14:00,0,          !- Field 78
+    Until: 15:00,0,          !- Field 80
+    Until: 16:00,0,          !- Field 82
+    Until: 17:00,0,          !- Field 84
+    Until: 18:00,0,          !- Field 86
+    Until: 19:00,0,          !- Field 88
+    Until: 20:00,0,          !- Field 90
+    Until: 21:00,0,          !- Field 92
+    Until: 22:00,0,          !- Field 94
+    Until: 23:00,0,          !- Field 96
+    Until: 24:00,0,          !- Field 98
+    For: Holiday,            !- Field 100
+    Until: 24:00,0.0,        !- Field 101
+    For: WinterDesignDay,    !- Field 103
+    Until: 24:00,0.0,        !- Field 104
+    For: SummerDesignDay,    !- Field 106
+    Until: 24:00,1.0,        !- Field 107
+    For: CustomDay1,         !- Field 109
+    Until: 24:00,0.0,        !- Field 110
+    For: CustomDay2,         !- Field 112
+    Until: 24:00,0.0;        !- Field 113
+
+  Schedule:Compact,
+    Perimeter_Zn_1_OCC_SCH,      !- Name
+    Fraction,                !- Schedule Type Limits Name
+    Through: 12/31,          !- Field 1
+    For: Weekdays,           !- Field 2
+    Until: 01:00,0,          !- Field 3
+    Until: 02:00,0,          !- Field 5
+    Until: 03:00,0,          !- Field 7
+    Until: 04:00,0,          !- Field 9
+    Until: 05:00,0,          !- Field 11
+    Until: 06:00,0,          !- Field 13
+    Until: 07:00,0.11,       !- Field 15
+    Until: 08:00,0.21,       !- Field 17
+    Until: 09:00,1,          !- Field 19
+    Until: 10:00,1,          !- Field 21
+    Until: 11:00,1,          !- Field 23
+    Until: 12:00,1,          !- Field 25
+    Until: 13:00,0.610394505402463, !- Field 27
+    Until: 14:00,1,          !- Field 29
+    Until: 15:00,1,          !- Field 31
+    Until: 16:00,1,          !- Field 33
+    Until: 17:00,1,          !- Field 35
+    Until: 18:00,0.32,       !- Field 37
+    Until: 19:00,0.11,       !- Field 39
+    Until: 20:00,0.11,       !- Field 41
+    Until: 21:00,0.11,       !- Field 43
+    Until: 22:00,0.11,       !- Field 45
+    Until: 23:00,0.05,       !- Field 47
+    Until: 24:00,0,          !- Field 49
+    For: Weekends,           !- Field 51
+    Until: 01:00,0,          !- Field 52
+    Until: 02:00,0,          !- Field 54
+    Until: 03:00,0,          !- Field 56
+    Until: 04:00,0,          !- Field 58
+    Until: 05:00,0,          !- Field 60
+    Until: 06:00,0,          !- Field 62
+    Until: 07:00,0,          !- Field 64
+    Until: 08:00,0,          !- Field 66
+    Until: 09:00,0,          !- Field 68
+    Until: 10:00,0,          !- Field 70
+    Until: 11:00,0,          !- Field 72
+    Until: 12:00,0,          !- Field 74
+    Until: 13:00,0,          !- Field 76
+    Until: 14:00,0,          !- Field 78
+    Until: 15:00,0,          !- Field 80
+    Until: 16:00,0,          !- Field 82
+    Until: 17:00,0,          !- Field 84
+    Until: 18:00,0,          !- Field 86
+    Until: 19:00,0,          !- Field 88
+    Until: 20:00,0,          !- Field 90
+    Until: 21:00,0,          !- Field 92
+    Until: 22:00,0,          !- Field 94
+    Until: 23:00,0,          !- Field 96
+    Until: 24:00,0,          !- Field 98
+    For: Holiday,            !- Field 100
+    Until: 24:00,0.0,        !- Field 101
+    For: WinterDesignDay,    !- Field 103
+    Until: 24:00,0.0,        !- Field 104
+    For: SummerDesignDay,    !- Field 106
+    Until: 24:00,1.0,        !- Field 107
+    For: CustomDay1,         !- Field 109
+    Until: 24:00,0.0,        !- Field 110
+    For: CustomDay2,         !- Field 112
+    Until: 24:00,0.0;        !- Field 113
+
+  Schedule:Compact,
+    Perimeter_Zn_2_OCC_SCH,       !- Name
     Fraction,                !- Schedule Type Limits Name
     Through: 12/31,          !- Field 1
     For: Weekdays,           !- Field 2
@@ -456,8 +586,73 @@
 
                              !- Field 28
 
-  Schedule:Compact,
-    BLDG_OCC_SCH_wo_SB,      !- Name
+    Schedule:Compact,
+    Perimeter_Zn_3_OCC_SCH,      !- Name
+    Fraction,                !- Schedule Type Limits Name
+    Through: 12/31,          !- Field 1
+    For: Weekdays,           !- Field 2
+    Until: 01:00,0,          !- Field 3
+    Until: 02:00,0,          !- Field 5
+    Until: 03:00,0,          !- Field 7
+    Until: 04:00,0,          !- Field 9
+    Until: 05:00,0,          !- Field 11
+    Until: 06:00,0,          !- Field 13
+    Until: 07:00,0.11,       !- Field 15
+    Until: 08:00,0.21,       !- Field 17
+    Until: 09:00,1,          !- Field 19
+    Until: 10:00,1,          !- Field 21
+    Until: 11:00,1,          !- Field 23
+    Until: 12:00,1,          !- Field 25
+    Until: 13:00,0.610394505402463, !- Field 27
+    Until: 14:00,1,          !- Field 29
+    Until: 15:00,1,          !- Field 31
+    Until: 16:00,1,          !- Field 33
+    Until: 17:00,1,          !- Field 35
+    Until: 18:00,0.32,       !- Field 37
+    Until: 19:00,0.11,       !- Field 39
+    Until: 20:00,0.11,       !- Field 41
+    Until: 21:00,0.11,       !- Field 43
+    Until: 22:00,0.11,       !- Field 45
+    Until: 23:00,0.05,       !- Field 47
+    Until: 24:00,0,          !- Field 49
+    For: Weekends,           !- Field 51
+    Until: 01:00,0,          !- Field 52
+    Until: 02:00,0,          !- Field 54
+    Until: 03:00,0,          !- Field 56
+    Until: 04:00,0,          !- Field 58
+    Until: 05:00,0,          !- Field 60
+    Until: 06:00,0,          !- Field 62
+    Until: 07:00,0,          !- Field 64
+    Until: 08:00,0,          !- Field 66
+    Until: 09:00,0,          !- Field 68
+    Until: 10:00,0,          !- Field 70
+    Until: 11:00,0,          !- Field 72
+    Until: 12:00,0,          !- Field 74
+    Until: 13:00,0,          !- Field 76
+    Until: 14:00,0,          !- Field 78
+    Until: 15:00,0,          !- Field 80
+    Until: 16:00,0,          !- Field 82
+    Until: 17:00,0,          !- Field 84
+    Until: 18:00,0,          !- Field 86
+    Until: 19:00,0,          !- Field 88
+    Until: 20:00,0,          !- Field 90
+    Until: 21:00,0,          !- Field 92
+    Until: 22:00,0,          !- Field 94
+    Until: 23:00,0,          !- Field 96
+    Until: 24:00,0,          !- Field 98
+    For: Holiday,            !- Field 100
+    Until: 24:00,0.0,        !- Field 101
+    For: WinterDesignDay,    !- Field 103
+    Until: 24:00,0.0,        !- Field 104
+    For: SummerDesignDay,    !- Field 106
+    Until: 24:00,1.0,        !- Field 107
+    For: CustomDay1,         !- Field 109
+    Until: 24:00,0.0,        !- Field 110
+    For: CustomDay2,         !- Field 112
+    Until: 24:00,0.0;        !- Field 113
+
+    Schedule:Compact,
+    Perimeter_Zn_4_OCC_SCH,      !- Name
     Fraction,                !- Schedule Type Limits Name
     Through: 12/31,          !- Field 1
     For: Weekdays,           !- Field 2
@@ -3100,7 +3295,7 @@
   People,
     Core_ZN,                 !- Name
     Core_ZN,                 !- Zone or ZoneList or Space or SpaceList Name
-    BLDG_OCC_SCH_wo_SB,      !- Number of People Schedule Name
+    Core_Zn_OCC_SCH,      !- Number of People Schedule Name
     Area/Person,             !- Number of People Calculation Method
     ,                        !- Number of People
     ,                        !- People per Floor Area {person/m2}
@@ -3122,7 +3317,7 @@
   People,
     Perimeter_ZN_1,          !- Name
     Perimeter_ZN_1,          !- Zone or ZoneList or Space or SpaceList Name
-    BLDG_OCC_SCH_wo_SB,      !- Number of People Schedule Name
+    Perimeter_Zn_1_OCC_SCH,      !- Number of People Schedule Name
     Area/Person,             !- Number of People Calculation Method
     ,                        !- Number of People
     ,                        !- People per Floor Area {person/m2}
@@ -3144,7 +3339,7 @@
   People,
     Perimeter_ZN_2,          !- Name
     Perimeter_ZN_2,          !- Zone or ZoneList or Space or SpaceList Name
-    BLDG_OCC_SCH_w_SB,       !- Number of People Schedule Name
+    Perimeter_Zn_2_OCC_SCH,       !- Number of People Schedule Name
     Area/Person,             !- Number of People Calculation Method
     ,                        !- Number of People
     ,                        !- People per Floor Area {person/m2}
@@ -3166,7 +3361,7 @@
   People,
     Perimeter_ZN_3,          !- Name
     Perimeter_ZN_3,          !- Zone or ZoneList or Space or SpaceList Name
-    BLDG_OCC_SCH_wo_SB,      !- Number of People Schedule Name
+    Perimeter_Zn_3_OCC_SCH,      !- Number of People Schedule Name
     Area/Person,             !- Number of People Calculation Method
     ,                        !- Number of People
     ,                        !- People per Floor Area {person/m2}
@@ -3188,7 +3383,7 @@
   People,
     Perimeter_ZN_4,          !- Name
     Perimeter_ZN_4,          !- Zone or ZoneList or Space or SpaceList Name
-    BLDG_OCC_SCH_wo_SB,      !- Number of People Schedule Name
+    Perimeter_Zn_4_OCC_SCH,      !- Number of People Schedule Name
     Area/Person,             !- Number of People Calculation Method
     ,                        !- Number of People
     ,                        !- People per Floor Area {person/m2}
@@ -5535,6 +5730,11 @@
 
 !-   ===========  ALL OBJECTS IN CLASS: ENERGYMANAGEMENTSYSTEM:SENSOR ===========
 
+EnergyManagementSystem:Sensor,
+    Core_Zn_OCC_SCH_Sensor,    !- Name
+    Core_Zn_OCC_SCH,           !- Output:Variable or Schedule Name
+    Schedule Value;         !- Output:Variable Name
+
   EnergyManagementSystem:Sensor,
     Core_ZN_Supp_Temp_Sensor,  !- Name
     PSZ-AC:1 SUPPLY EQUIPMENT OUTLET NODE,  !- Output:Variable or Output:Meter Index Key Name
@@ -6495,6 +6695,11 @@
   Output:Variable,*,Site Wind Direction ,Timestep;
   Output:Variable,*,Site Horizontal Infrared Radiation Rate per Area ,Timestep;
   Output:Variable,*,Site Rain Status ,Timestep;
+  Output:Variable,*,Site Outdoor Air Relative Humidity,Timestep;
 
 
+Output:Variable,
+    *,                              !- Key Value (applies to all zones or specify one)
+    Zone People Occupant Count,     !- Variable Name
+    timestep;                       !- Reporting Frequency (change from hourly to timestep)
 
