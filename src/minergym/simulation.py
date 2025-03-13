@@ -158,6 +158,8 @@ class EnergyPlusSimulation:
 
     number_of_warmup_phases_completed: int = 0
 
+    warmup_phases: int = 5
+
     n_steps: int = field(default=0, init=False)
 
     """The amount of steps before the simulation exits."""
@@ -189,7 +191,7 @@ class EnergyPlusSimulation:
             # evaluating setpoints and sending observations before all the
             # warmup phases are all done, the policy will see the date jump
             # around, which is bad.
-            if self.number_of_warmup_phases_completed < 5:
+            if self.number_of_warmup_phases_completed < self.warmup_phases:
                 return
 
             if self.observation_handles is None:
