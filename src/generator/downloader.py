@@ -5,7 +5,6 @@ import re
 import zipfile
 import io
 from pathlib import Path
-import logging
 
 
 def download_epw(state_code, city_name=None, save_dir="output/weather"):
