@@ -1,0 +1,10 @@
+/.env/
+/.venv/
+/.conda/
+/.idea/
+__pycache__/
+/.pytest_cache/
+*.py[cod]
+*$py.class
+data/
+logs
