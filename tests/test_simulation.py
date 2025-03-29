@@ -1,6 +1,6 @@
-import minergym.simulation as simulation
-from minergym.data.building import crawlspace
-from minergym.data.weather import honolulu
+import simulator.simulation as simulation
+from simulator.data.building import crawlspace
+from simulator.data.weather import honolulu
 from importlib import resources
 import pytest
 

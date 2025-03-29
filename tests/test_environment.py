@@ -1,7 +1,7 @@
-import minergym.simulation as simulation
-import minergym.environment as environment
-from minergym.data.building import crawlspace
-from minergym.data.weather import honolulu
+import simulator.simulation as simulation
+import simulator.environment as environment
+from simulator.data.building import crawlspace
+from simulator.data.weather import honolulu
 
 import gymnasium
 import numpy as np
