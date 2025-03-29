@@ -1,5 +1,5 @@
-import minergym.data.building as building
-import minergym.data.weather as weather
+import simulator.data.building as building
+import simulator.data.weather as weather
 import os
 
 

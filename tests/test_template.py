@@ -1,4 +1,4 @@
-import minergym.template as template
+import simulator.template as template
 from dataclasses import dataclass
 
 

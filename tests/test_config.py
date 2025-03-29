@@ -1,9 +1,9 @@
-import minergym.config as config
-import minergym.query_info as query_info
+import simulator.config as config
+import simulator.query_info as query_info
 import tests.test_data as test_data
-import minergym.simulation as simulation
-import minergym.data.building as building
-import minergym.data.weather as weather
+import simulator.simulation as simulation
+import simulator.data.building as building
+import simulator.data.weather as weather
 
 
 def test_full_config() -> None:
