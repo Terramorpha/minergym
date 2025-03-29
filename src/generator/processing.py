@@ -220,7 +220,7 @@ def transition_idf(idf_path: str, state: str, county: str, target_version: str =
         logger.info(f"\nFinal transitioned file saved to: {final_output_path}")
         
     finally:
-        # Clean up temporary directory
+        # Clean up temporary directory and additional files
         if os.path.exists(temp_dir):
             for file in os.listdir(temp_dir):
                 try:
@@ -231,6 +231,16 @@ def transition_idf(idf_path: str, state: str, county: str, target_version: str =
                 os.rmdir(temp_dir)
             except Exception as e:
                 logger.warning(f"Failed to remove temporary directory: {e}")
+        
+        # Clean up Energy+.ini and Transition.audit files
+        cleanup_files = ['Energy+.ini', 'Transition.audit']
+        for file in cleanup_files:
+            try:
+                if os.path.exists(file):
+                    os.remove(file)
+                    logger.debug(f"Removed {file}")
+            except Exception as e:
+                logger.warning(f"Failed to remove {file}: {e}")
     
     return final_output_path
 
