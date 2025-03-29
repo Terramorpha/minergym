@@ -5,7 +5,9 @@ import re
 import zipfile
 import io
 from pathlib import Path
+import logging
 
+logger = logging.getLogger('generator')
 
 def download_epw(state_code, city_name=None, save_dir="output/weather"):
     """
@@ -29,27 +31,24 @@ def download_epw(state_code, city_name=None, save_dir="output/weather"):
     # Special handling for None city_name - look for any file from the state
     if city_name is None:
         for file in existing_files:
-            # Look for state code pattern like "USA_IL_" or "_IL." in filename
             if file.endswith('.epw') and (f"USA_{state_code.upper()}_" in file or f"_{state_code.upper()}." in file):
-                print(f"Found existing EPW file for state {state_code}: {os.path.join(save_dir, file)}")
+                logger.info(f"Found existing EPW file for state {state_code}: {os.path.join(save_dir, file)}")
                 return os.path.join(save_dir, file)
     else:
-        # Original check for specific city and state
         for file in existing_files:
             if file.endswith('.epw') and city_name.lower() in file.lower() and (
                 f"USA_{state_code.upper()}_" in file or f"_{state_code.upper()}." in file):
-                print(f"EPW file already exists: {os.path.join(save_dir, file)}")
+                logger.info(f"EPW file already exists: {os.path.join(save_dir, file)}")
                 return os.path.join(save_dir, file)
     
-    # If no existing file found, proceed to download
-    print(f"No existing EPW file found for {'state '+state_code if city_name is None else city_name+', '+state_code}. Downloading...")
+    logger.info(f"No existing EPW file found for {'state '+state_code if city_name is None else city_name+', '+state_code}. Downloading...")
     
     base_url = "https://climate.onebuilding.org/WMO_Region_4_North_and_Central_America/USA_United_States_of_America/"
     
     # Get the webpage content
     response = requests.get(base_url)
     if response.status_code != 200:
-        print("Failed to access the webpage.")
+        logger.error("Failed to access the webpage.")
         return None
     
     # Parse HTML
@@ -68,19 +67,19 @@ def download_epw(state_code, city_name=None, save_dir="output/weather"):
                 # For None city_name, match any file from the state with exact state code pattern
                 if f"USA_{state_code.upper()}_" in file_name or f"_{state_code.upper()}." in file_name:
                     zip_file_link = base_url + href
-                    print(f"Found matching ZIP file for state {state_code}: {file_name}")
+                    logger.debug(f"Found matching ZIP file for state {state_code}: {file_name}")
                     break
             else:
                 # Original behavior for specific city with exact state code pattern
                 if city_name.lower() in file_name.lower() and (
                     f"USA_{state_code.upper()}_" in file_name or f"_{state_code.upper()}." in file_name):
                     zip_file_link = base_url + href
-                    print(f"Found matching ZIP file: {file_name}")
+                    logger.debug(f"Found matching ZIP file: {file_name}")
                     break
 
     if zip_file_link:
         # Download the ZIP file
-        print(f"Downloading from: {zip_file_link}")
+        logger.debug(f"Downloading from: {zip_file_link}")
         response = requests.get(zip_file_link)
         
         if response.status_code == 200:
@@ -101,16 +100,16 @@ def download_epw(state_code, city_name=None, save_dir="output/weather"):
                         with open(epw_path, "wb") as f:
                             f.write(epw_content)
                         
-                        print(f"Downloaded and extracted EPW file: {epw_path}")
+                        logger.info(f"Downloaded and extracted EPW file: {epw_path}")
                         return epw_path
                     else:
-                        print("No EPW file found in the ZIP archive.")
+                        logger.warning("No EPW file found in the ZIP archive.")
             except zipfile.BadZipFile:
-                print("Downloaded file is not a valid ZIP file.")
+                logger.error("Downloaded file is not a valid ZIP file.")
         else:
-            print(f"Failed to download ZIP file. Status code: {response.status_code}")
+            logger.error(f"Failed to download ZIP file. Status code: {response.status_code}")
     else:
-        print(f"No ZIP file found for city: {city_name}, state: {state_code}")
+        logger.warning(f"No ZIP file found for city: {city_name}, state: {state_code}")
     
     return None
 
@@ -145,13 +144,14 @@ def get_available_counties() -> list[tuple[str, str]]:
                 county_name = match.group(2)
                 counties.append((state_code, county_name))
         
+        logger.debug(f"Found {len(counties)} available counties")
         return sorted(counties)  # Sort by state code and county name
         
     except requests.exceptions.RequestException as e:
-        print(f"Error accessing website: {e}")
+        logger.error(f"Error accessing website: {e}")
         return []
     except Exception as e:
-        print(f"An unexpected error occurred: {e}")
+        logger.error(f"An unexpected error occurred: {e}")
         return []
 
 def download_and_extract_county_idf(state_code: str, county_name: str) -> str:
@@ -177,7 +177,7 @@ def download_and_extract_county_idf(state_code: str, county_name: str) -> str:
     
     # Check if directory exists and contains files
     if county_dir.exists() and any(county_dir.iterdir()):
-        print(f"IDF files for {county_name}, {state_code} already exist in {county_dir}")
+        logger.info(f"IDF files for {county_name}, {state_code} already exist in {county_dir}")
         return county_dir
     
     # If files don't exist, proceed with download
@@ -195,7 +195,7 @@ def download_and_extract_county_idf(state_code: str, county_name: str) -> str:
     
     try:
         # Download the file
-        print(f"Downloading {filename}...")
+        logger.info(f"Downloading {filename}...")
         response = requests.get(url, stream=True)
         response.raise_for_status()
         
@@ -205,22 +205,22 @@ def download_and_extract_county_idf(state_code: str, county_name: str) -> str:
                 f.write(chunk)
         
         # Extract the zip file to the county-specific folder
-        print(f"Extracting {filename} to {folder_name}/...")
+        logger.debug(f"Extracting {filename} to {folder_name}/...")
         with zipfile.ZipFile(zip_path, 'r') as zip_ref:
             zip_ref.extractall(county_dir)
         
         # Remove the zip file after extraction
         os.remove(zip_path)
-        print(f"Successfully downloaded and extracted {filename}")
+        logger.info(f"Successfully downloaded and extracted {filename}")
         
     except requests.exceptions.RequestException as e:
-        print(f"Error downloading file: {e}")
+        logger.error(f"Error downloading file: {e}")
     except zipfile.BadZipFile:
-        print(f"Error: {filename} is not a valid zip file")
+        logger.error(f"Error: {filename} is not a valid zip file")
         if zip_path.exists():
             os.remove(zip_path)
     except Exception as e:
-        print(f"An unexpected error occurred: {e}")
+        logger.error(f"An unexpected error occurred: {e}")
         if zip_path.exists():
             os.remove(zip_path)
 
@@ -245,7 +245,7 @@ def download_metadata(state: str):
     # Check if file already exists
     file_path = os.path.join(output_dir, target_file)
     if os.path.exists(file_path):
-        print(f"Skipping {target_file} - already exists")
+        logger.info(f"Skipping {target_file} - already exists")
         return
 
     try:
@@ -257,13 +257,13 @@ def download_metadata(state: str):
         # Save the file
         with open(file_path, 'wb') as f:
             f.write(response.content)
-        print(f"Downloaded: {target_file}")
+        logger.info(f"Downloaded: {target_file}")
 
     except requests.exceptions.RequestException as e:
-        print(f"Error downloading metadata for {state}: {str(e)}")
+        logger.error(f"Error downloading metadata for {state}: {str(e)}")
         raise
     except Exception as e:
-        print(f"Unexpected error: {str(e)}")
+        logger.error(f"Unexpected error: {str(e)}")
         raise
 
 

@@ -1,9 +1,11 @@
 import os
 import pandas as pd
 import subprocess
+import logging
 from typing import List
 from src.generator.utils import get_county_from_coords
 
+logger = logging.getLogger('generator')
 
 def process_metadata(state: str):
     """
@@ -14,10 +16,7 @@ def process_metadata(state: str):
     3. Parses the Centroid column to extract latitude and longitude
     4. Creates a new County column with the county name for each coordinate pair
     """
-    
     csv_file = os.path.join("data", "metadata", f"{state}.csv")
-    
-    # Process each CSV file in the metadata directory
     
     try:
         # Read the CSV file
@@ -25,8 +24,10 @@ def process_metadata(state: str):
         
         # Skip if County column already exists
         if 'County' in df.columns:
-            print(f"Skipping {csv_file} - already processed")
+            logger.info(f"Skipping {csv_file} - already processed")
             return
+        
+        logger.info(f"Processing metadata for state: {state}")
         
         # Split the Centroid column into latitude and longitude
         df[['Latitude', 'Longitude']] = df['Centroid'].str.split('/', expand=True)
@@ -36,6 +37,7 @@ def process_metadata(state: str):
         df['Longitude'] = df['Longitude'].astype(float)
         
         # Get county for each coordinate pair
+        logger.debug("Getting county names for coordinates...")
         df['County'] = df.apply(
             lambda row: get_county_from_coords(row['Latitude'], row['Longitude']), 
             axis=1
@@ -43,11 +45,11 @@ def process_metadata(state: str):
         
         # Save the updated CSV file
         df.to_csv(csv_file, index=False)
-        print(f"Processed and updated {csv_file}")
+        logger.info(f"Successfully processed and updated {csv_file}")
             
     except Exception as e:
-        print(f"Error processing {csv_file}: {e}")
-
+        logger.error(f"Error processing {csv_file}: {e}")
+        raise
 
 def find_transitioned_file(original_file: str, to_ver: str) -> str:
     """Helper function to find the transitioned file which might have different naming patterns"""
@@ -74,13 +76,13 @@ def find_transitioned_file(original_file: str, to_ver: str) -> str:
     
     for pattern in possible_patterns:
         if os.path.exists(pattern):
-            print(f"Found matching file: {pattern}")
+            logger.debug(f"Found matching file: {pattern}")
             return pattern
             
-    # If no pattern matches, print all files in directory for debugging
-    print(f"Available files in {idf_dir}:")
+    # If no pattern matches, log all files in directory for debugging
+    logger.warning(f"No matching transitioned file found. Available files in {idf_dir}:")
     for file in os.listdir(idf_dir):
-        print(f"  {file}")
+        logger.debug(f"  {file}")
             
     return None
 
@@ -144,13 +146,13 @@ def transition_idf(idf_path: str, state: str, county: str, target_version: str =
             
             # Check if required files exist
             if not os.path.exists(transition_exe):
-                print(f"Error: Transition executable not found at {transition_exe}")
+                logger.error(f"Error: Transition executable not found at {transition_exe}")
                 return None
             if not os.path.exists(from_idd):
-                print(f"Error: Source IDD file not found at {from_idd}")
+                logger.error(f"Error: Source IDD file not found at {from_idd}")
                 return None
             if not os.path.exists(to_idd):
-                print(f"Error: Target IDD file not found at {to_idd}")
+                logger.error(f"Error: Target IDD file not found at {to_idd}")
                 return None
                 
             # Create symbolic links to IDD files in the working directory
@@ -167,9 +169,9 @@ def transition_idf(idf_path: str, state: str, county: str, target_version: str =
                 os.symlink(from_idd, from_idd_link)
                 os.symlink(to_idd, to_idd_link)
                 
-                print(f"\nRunning transition from {from_ver} to {to_ver}")
-                print(f"Using: {transition_exe}")
-                print(f"Input: {working_file}")
+                logger.info(f"\nRunning transition from {from_ver} to {to_ver}")
+                logger.debug(f"Using: {transition_exe}")
+                logger.debug(f"Input: {working_file}")
                 
                 result = subprocess.run(
                     [transition_exe, working_file],
@@ -181,9 +183,9 @@ def transition_idf(idf_path: str, state: str, county: str, target_version: str =
                 )
                 
                 if result.stdout:
-                    print("Transition output:", result.stdout)
+                    logger.debug("Transition output:", result.stdout)
                 if result.stderr:
-                    print("Transition errors:", result.stderr)
+                    logger.warning("Transition errors:", result.stderr)
                 
                 # Clean up any .idfold files that might have been created
                 old_file = working_file + "old"
@@ -193,7 +195,7 @@ def transition_idf(idf_path: str, state: str, county: str, target_version: str =
                 # Look for the transitioned file
                 transitioned_file = find_transitioned_file(working_file, to_ver)
                 if transitioned_file:
-                    print(f"Found transitioned file at: {transitioned_file}")
+                    logger.debug(f"Found transitioned file at: {transitioned_file}")
                     if transitioned_file != working_file:
                         # Replace working file with transitioned file
                         with open(transitioned_file, 'r') as src, open(working_file, 'w') as dst:
@@ -201,7 +203,7 @@ def transition_idf(idf_path: str, state: str, county: str, target_version: str =
                         # Remove the transitioned file after copying
                         os.remove(transitioned_file)
                 else:
-                    print(f"Error: Could not find transitioned file for {working_file}")
+                    logger.error(f"Error: Could not find transitioned file for {working_file}")
                     return None
                     
             finally:
@@ -215,7 +217,7 @@ def transition_idf(idf_path: str, state: str, county: str, target_version: str =
         with open(working_file, 'r') as src, open(final_output_path, 'w') as dst:
             dst.write(src.read())
         
-        print(f"\nFinal transitioned file saved to: {final_output_path}")
+        logger.info(f"\nFinal transitioned file saved to: {final_output_path}")
         
     finally:
         # Clean up temporary directory
@@ -223,12 +225,12 @@ def transition_idf(idf_path: str, state: str, county: str, target_version: str =
             for file in os.listdir(temp_dir):
                 try:
                     os.remove(os.path.join(temp_dir, file))
-                except:
-                    pass
+                except Exception as e:
+                    logger.warning(f"Failed to remove temporary file {file}: {e}")
             try:
                 os.rmdir(temp_dir)
-            except:
-                pass
+            except Exception as e:
+                logger.warning(f"Failed to remove temporary directory: {e}")
     
     return final_output_path
 
@@ -252,14 +254,14 @@ def process_idf(idf_files: List[int], state: str, county: str):
         # Check if processed file already exists
         processed_path = os.path.join(processed_dir, f"{idf_id}.idf")
         if os.path.exists(processed_path):
-            print(f"Skipping {idf_id}.idf - already processed")
+            logger.info(f"Skipping {idf_id}.idf - already processed")
             processed_paths.append(processed_path)
             continue
             
         # Get path to original file
         original_path = os.path.join("data", "idf", f"{state}_{county}_IDF", f"{idf_id}.idf")
         if not os.path.exists(original_path):
-            print(f"Warning: Original file not found at {original_path}")
+            logger.warning(f"Warning: Original file not found at {original_path}")
             continue
             
         # Process the file
