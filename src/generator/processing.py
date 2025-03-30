@@ -219,6 +219,14 @@ def transition_idf(idf_path: str, state: str, county: str, target_version: str =
         
         logger.info(f"\nFinal transitioned file saved to: {final_output_path}")
         
+        # Convert the final IDF to epJSON
+        epjson_path = convert_to_epjson(final_output_path)
+        if epjson_path:
+            return epjson_path
+        else:
+            logger.error("Failed to convert to epJSON format")
+            return final_output_path  # Return IDF path as fallback
+        
     finally:
         # Clean up temporary directory and additional files
         if os.path.exists(temp_dir):
@@ -280,3 +288,54 @@ def process_idf(idf_files: List[int], state: str, county: str):
             processed_paths.append(processed_path)
             
     return processed_paths
+
+def convert_to_epjson(idf_path: str) -> str:
+    """
+    Convert an IDF file to epJSON format using EnergyPlus converter.
+    Deletes the original IDF file after successful conversion.
+
+    Args:
+        idf_path (str): Path to the input IDF file
+
+    Returns:
+        str: Path to the converted epJSON file, or None if conversion fails
+    """
+    try:
+        # Define the output path
+        epjson_path = os.path.splitext(idf_path)[0] + '.epJSON'
+        
+        # Path to the EnergyPlus executable
+        energyplus_dir = "/usr/local/EnergyPlus-24-1-0"
+        converter = os.path.join(energyplus_dir, "ConvertInputFormat")
+        
+        logger.info(f"Converting {idf_path} to epJSON format")
+        
+        # Run the conversion
+        result = subprocess.run(
+            [converter, idf_path],
+            check=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True
+        )
+        
+        if result.stderr:
+            logger.warning(f"Conversion warnings: {result.stderr}")
+            
+        # Check if the epJSON file was created
+        if os.path.exists(epjson_path):
+            logger.info(f"Successfully converted to: {epjson_path}")
+            # Delete the original IDF file
+            os.remove(idf_path)
+            logger.debug(f"Deleted original IDF file: {idf_path}")
+            return epjson_path
+        else:
+            logger.error(f"epJSON file not created at expected path: {epjson_path}")
+            return None
+            
+    except subprocess.CalledProcessError as e:
+        logger.error(f"Conversion failed: {e.stderr}")
+        return None
+    except Exception as e:
+        logger.error(f"Error during conversion: {e}")
+        return None
