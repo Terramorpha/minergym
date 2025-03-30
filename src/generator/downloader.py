@@ -9,7 +9,7 @@ import logging
 
 logger = logging.getLogger('generator')
 
-def download_epw(state_code, city_name=None, save_dir="output/weather"):
+def download_epw(state_code, city_name=None, save_dir="data/weather"):
     """
     Download EPW weather file for a specific city and state.
     If city_name is None, downloads any available weather file from the state.

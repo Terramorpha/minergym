@@ -1,7 +1,7 @@
 import pandas as pd
 import os
 import logging
-from src.generator.downloader import download_and_extract_county_idf, download_metadata
+from src.generator.downloader import download_and_extract_county_idf, download_metadata, download_epw
 from src.generator.processing import process_idf, process_metadata
 
 logger = logging.getLogger('generator')
@@ -83,6 +83,10 @@ def search_idf(state: str, county:str, building_type: str, area: float, num_floo
         # Process the found IDF files
         processed_files = process_idf(idf_files, state, county)
         logger.info(f"Successfully processed {len(processed_files)} IDF files")
+
+        # Download associated weather files
+        download_epw(state_code=state)
+        logger.info(f"Successfully downloaded weather files")
         
     except Exception as e:
         logger.error(f"Error during IDF search and processing: {e}")
