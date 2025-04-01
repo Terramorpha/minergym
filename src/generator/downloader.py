@@ -266,6 +266,40 @@ def download_metadata(state: str):
         logger.error(f"Unexpected error: {str(e)}")
         raise
 
+def scrap_full_dataset() -> list[Path]:
+    """
+    Downloads and extracts all available county IDF files from ESS-DIVE.
+    
+    Returns:
+        list[Path]: List of paths to all downloaded county directories containing IDF files
+    """
+    logger.info("Starting full dataset download...")
+    
+    # Get list of all available counties
+    counties = get_available_counties()
+    if not counties:
+        logger.error("Failed to fetch list of available counties")
+        return []
+    
+    logger.info(f"Found {len(counties)} counties to download")
+    
+    # Store all successful downloads
+    downloaded_dirs = []
+    
+    # Download each county's data
+    for state_code, county_name in counties:
+        try:
+            logger.info(f"Processing {county_name}, {state_code}...")
+            county_dir = download_and_extract_county_idf(state_code, county_name)
+            downloaded_dirs.append(county_dir)
+            
+        except Exception as e:
+            logger.error(f"Failed to download {county_name}, {state_code}: {str(e)}")
+            continue
+    
+    logger.info(f"Download complete. Successfully downloaded {len(downloaded_dirs)} out of {len(counties)} counties")
+    return downloaded_dirs
+
 
 
 

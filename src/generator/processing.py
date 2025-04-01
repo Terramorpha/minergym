@@ -3,7 +3,7 @@ import pandas as pd
 import subprocess
 import logging
 from typing import List
-from src.generator.utils import get_county_from_coords
+from src.generator.utils import get_counties_from_coords_batch
 
 logger = logging.getLogger('generator')
 
@@ -15,6 +15,7 @@ def process_metadata(state: str):
     2. If County column exists, skip the file as it's already processed
     3. Parses the Centroid column to extract latitude and longitude
     4. Creates a new County column with the county name for each coordinate pair
+    Uses async requests to optimize county lookups
     """
     csv_file = os.path.join("data", "metadata", f"{state}.csv")
     
@@ -36,12 +37,13 @@ def process_metadata(state: str):
         df['Latitude'] = df['Latitude'].astype(float)
         df['Longitude'] = df['Longitude'].astype(float)
         
-        # Get county for each coordinate pair
-        logger.debug("Getting county names for coordinates...")
-        df['County'] = df.apply(
-            lambda row: get_county_from_coords(row['Latitude'], row['Longitude']), 
-            axis=1
-        )
+        # Process all coordinates at once
+        logger.debug("Getting county names for all coordinates...")
+        coords_list = list(zip(df['Latitude'], df['Longitude']))
+        counties = get_counties_from_coords_batch(coords_list)
+        
+        # Add counties to dataframe
+        df['County'] = counties
         
         # Save the updated CSV file
         df.to_csv(csv_file, index=False)
