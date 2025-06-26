@@ -24,7 +24,7 @@ import minergym.data.building as building
 # points to weather files
 import minergym.data.weather as weather
 # extracts information from epJSON files
-import minergym.query_info as query_info
+from minergym.ontology import Ontology
 # wraps a simulation into a gym environment
 import minergym.environment as environment
 
@@ -32,10 +32,10 @@ building_file = building.crawlspace
 weather_file = weather.honolulu
 
 obs_template = {}
-rdf = query_info.rdf_from_json(building_file)
-config.auto_add_time(rdf, obs_template)
-config.auto_add_temperature(rdf, obs_template)
-actuators = config.auto_get_actuators(rdf)
+ont = Ontology.from_json(building_file)
+config.auto_add_time(ont, obs_template)
+config.auto_add_temperature(ont, obs_template)
+actuators = config.auto_get_actuators(ont)
 
 print(f"{obs_template=}") # Look at what those are!
 print(f"{actuators=}")

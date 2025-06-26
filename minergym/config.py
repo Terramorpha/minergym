@@ -13,27 +13,27 @@ This module collects functions useful to creates those 4-tuples.
 
 """
 
-import minergym.query_info as query_info
+from minergym.ontology import Ontology
 import rdflib
 import typing
 import minergym.simulation as simulation
 
 
 def auto_get_actuators(
-    rdf: rdflib.Graph,
+    ont: Ontology,
 ) -> typing.Dict[str, simulation.ActuatorHole]:
     """Add all actuators listed in the graph. This is probably not what you
     want, since actuators that are not heating/cooling setpoints will be added
     too."""
     act = {}
-    for name in query_info.rdf_schedules(rdf):
+    for name in ont.schedules():
         # for name in zones_with_cooling
         act[name] = simulation.ActuatorHole("Schedule:Compact", "Schedule Value", name)
     return act
 
 
 def auto_add_temperature(
-    rdf: rdflib.Graph, obs_template: typing.Dict[str, typing.Any]
+    ont: Ontology, obs_template: typing.Dict[str, typing.Any]
 ) -> None:
     """Add a "ZONE AIR TEMPERATURE" for each zone in the graph."""
     temps = {}
@@ -41,13 +41,14 @@ def auto_add_temperature(
         "SITE OUTDOOR AIR DRYBULB TEMPERATURE",
         "ENVIRONMENT",
     )
-    for z in query_info.rdf_zones(rdf):
+    for node in ont.zones():
+        z = node.toPython()
         temps[z] = simulation.VariableHole("ZONE AIR TEMPERATURE", z)
         obs_template["temperature"] = temps
 
 
 def auto_add_setpoint_variables(
-    rdf: rdflib.Graph, obs_template: typing.Dict[str, typing.Any]
+    ont: Ontology, obs_template: typing.Dict[str, typing.Any]
 ) -> None:
     setpoints: typing.Any = {}
     obs_template["setpoints"] = setpoints
@@ -58,7 +59,8 @@ def auto_add_setpoint_variables(
     cooling: typing.Any = {}
     setpoints["cooling"] = cooling
 
-    for z in query_info.rdf_zones(rdf):
+    for node in ont.zones():
+        z = node.toPython()
         heating[z] = simulation.VariableHole(
             "Zone Thermostat Heating Setpoint Temperature", z
         )
@@ -68,13 +70,14 @@ def auto_add_setpoint_variables(
 
 
 def auto_add_comfort(
-    rdf: rdflib.Graph, obs_template: typing.Dict[str, typing.Any]
+    ont: Ontology, obs_template: typing.Dict[str, typing.Any]
 ) -> None:
     if "comfort" not in obs_template:
         obs_template["comfort"] = {}
 
     comfort = obs_template["comfort"]
-    for z in query_info.rdf_zones(rdf):
+    for node in ont.zones():
+        z = node.toPython()
         comfort[z + "_comfort"] = simulation.VariableHole(
             "Zone Thermal Comfort Pierce Model Thermal Sensation Index", z
         )
@@ -84,7 +87,7 @@ def auto_add_comfort(
 
 
 def auto_add_energy(
-    rdf: rdflib.Graph, obs_template: typing.Dict[str, typing.Any]
+    ont: Ontology, obs_template: typing.Dict[str, typing.Any]
 ) -> None:
     if "reward" not in obs_template:
         obs_template["energy"] = {}
@@ -93,7 +96,8 @@ def auto_add_energy(
 
     r["whole_building"] = simulation.MeterHole("Electricity:HVAC")
 
-    for z in query_info.rdf_zones(rdf):
+    for node in ont.zones():
+        z = node.toPython()
         r[z + "_cooling"] = simulation.VariableHole(
             "Zone Air System Sensible Cooling Energy", z
         )
@@ -103,7 +107,7 @@ def auto_add_energy(
 
 
 def auto_add_time(
-    rdf: rdflib.Graph, obs_template: typing.Dict[str, typing.Any]
+    ont: Ontology, obs_template: typing.Dict[str, typing.Any]
 ) -> None:
     """Add ubiquitous variables."""
 

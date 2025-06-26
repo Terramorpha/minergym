@@ -1,5 +1,5 @@
 import rdflib
-import minergym.query_info as query_info
+from minergym.ontology import Ontology
 import minergym.data.building as building
 
 
@@ -29,8 +29,8 @@ def test_zones():
         "living_unit3_FrontRow_TopFloor",
     ]
 
-    rdf = query_info.rdf_from_json(building.crawlspace)
+    ont = Ontology.from_json(building.crawlspace)
 
-    zones_real = query_info.rdf_zones(rdf)
+    zones_real = [node.toPython() for node in ont.zones()]
 
     assert set(zones_expected) == set(zones_real)
