@@ -16,6 +16,7 @@ import queue
 import pathlib
 import traceback
 import optree
+import optree.typing
 from pathlib import Path
 from ctypes import c_void_p
 
@@ -142,7 +143,7 @@ class Channel(typing.Generic[T]):
 # types for things
 
 _AnyHandle = VariableHandle | MeterHandle | ActuatorHandle | FunctionHole
-_AnyHole = VariableHole | MeterHole | ActuatorHole | FunctionHole
+AnyHole = VariableHole | MeterHole | ActuatorHole | FunctionHole
 
 @dataclass(slots=True)
 class EnergyPlusSimulation:
@@ -156,9 +157,9 @@ class EnergyPlusSimulation:
     weather_path: Path
 
     """A PyTree containing `Variable` and `Meter` leaves."""
-    observation_template: typing.Any
+    observation_template: optree.typing.PyTree[AnyHole]
 
-    actuators: typing.Dict[str, ActuatorHole]
+    actuators: optree.typing.PyTree[ActuatorHole]
 
     """ A PyTree of the same shape, but containing the associated handles."""
     observation_handles: typing.Any = None
@@ -236,9 +237,12 @@ class EnergyPlusSimulation:
             if not isinstance(act, dict):
                 return
 
-            # And we send the simulation the actuator values
-            for k, v in act.items():
-                api.exchange.set_actuator_value(state, self.actuator_handles[k], v)
+            # For each leaf in the tree, we find the `ActuatorHandle` with the
+            # same path and set its value.
+            for accessor in optree.tree_accessors(act):
+                h: ActuatorHandle = accessor(self.actuator_handles)
+                the_value = accessor(act)
+                api.exchange.set_actuator_value(state, h.handle, the_value)
 
             self.n_steps += 1
 
@@ -255,7 +259,7 @@ class EnergyPlusSimulation:
         # running simulation) into a not-so-human-readable numerical handle.
         # This is what we do here.
 
-        def get_hole_handle(o: _AnyHole) -> _AnyHandle:
+        def get_hole_handle(o: AnyHole) -> _AnyHandle:
             if isinstance(o, VariableHole):
                 var = o
                 han = api.exchange.get_variable_handle(
@@ -294,11 +298,16 @@ class EnergyPlusSimulation:
             self.observation_template,
         )
 
-        for k, act in self.actuators.items():
-            han = api.exchange.get_actuator_handle(
+        def get_actuator_handle(act: ActuatorHole) -> ActuatorHandle:
+            return ActuatorHandle(api.exchange.get_actuator_handle(
                 state, act.component_type, act.control_type, act.actuator_key
-            )
-            self.actuator_handles[k] = han
+            ))
+
+        self.actuator_handles = optree.tree_map(
+            get_actuator_handle,
+            self.actuators,
+        )
+
 
     def start(self) -> typing.Tuple[typing.Any, bool]:
         state = api.state_manager.new_state()

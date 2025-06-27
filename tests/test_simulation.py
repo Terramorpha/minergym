@@ -102,3 +102,33 @@ def test_get_api_endpoints() -> None:
 
     # Will crash is some unknown api object is encountered
     sim.get_api_endpoints()
+
+def test_simulation_set_actuator_value() -> None:
+
+    actuators = {
+        "heating_sch": simulation.ActuatorHole(component_type="Schedule:Compact", control_type="Schedule Value", actuator_key="heating_sch"),
+        "cooling_sch": simulation.ActuatorHole(component_type="Schedule:Compact", control_type="Schedule Value", actuator_key="cooling_sch"),
+    }
+
+    sim = simulation.EnergyPlusSimulation(crawlspace, honolulu, actuators, actuators, max_steps=100)
+    sim.start()
+
+    obs, done = sim.step( {"heating_sch": 15})
+    # Right after we set the actuator, it should have the right value.
+    assert obs["heating_sch"] == 15
+
+
+def test_simulation_structured_actuators() -> None:
+
+    actuators = {
+        "zone_1" : {
+            "heating_sch": simulation.ActuatorHole(component_type="Schedule:Compact", control_type="Schedule Value", actuator_key="heating_sch"),
+            "cooling_sch": simulation.ActuatorHole(component_type="Schedule:Compact", control_type="Schedule Value", actuator_key="cooling_sch"),
+        }
+    }
+
+    sim = simulation.EnergyPlusSimulation(crawlspace, honolulu, actuators, actuators, max_steps=100)
+    sim.start()
+
+    obs, done = sim.step( {"zone_1" : {"heating_sch": 15}} )
+    assert obs["zone_1"]["heating_sch"] == 15
