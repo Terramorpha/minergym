@@ -213,6 +213,26 @@ WHERE {
     }"""
         return list(set(r.name for r in self.rdf.query(q)))
 
+    def minimum_number_of_warmup_days(self) -> int:
+        """Look for the `Building` section and return its
+        `minimum_number_of_warmup_days` attribute.
+
+        Useful to correctly set the `warmup_phases` parameter of the simulator.
+
+        """
+
+        q = """# -*- mode: sparql -*-
+SELECT ?warmupDays
+WHERE {
+  ?building a "Building" .
+  ?building idf:minimum_number_of_warmup_days ?warmupDays .
+}"""
+
+        for r in self.rdf.query(q):
+            n = r.warmupDays.toPython()
+            assert isinstance(n, int)
+            return n
+        raise Exception("Could not find anything.")
 
 def undirected_graph_to_dot(g: UndirectedGraph[T]) -> str:
     o = ""

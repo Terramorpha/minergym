@@ -34,3 +34,8 @@ def test_zones():
     zones_real = [node.toPython() for node in ont.zones()]
 
     assert set(zones_expected) == set(zones_real)
+
+
+def test_minimum_number_of_days() -> None:
+    ont = Ontology.from_json(building.crawlspace)
+    assert ont.minimum_number_of_warmup_days() == 6
