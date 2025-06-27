@@ -2,6 +2,7 @@ import minergym.simulation as simulation
 from minergym.data.building import crawlspace
 from minergym.data.weather import honolulu
 from importlib import resources
+from pathlib import Path
 import pytest
 
 
@@ -84,7 +85,7 @@ def test_simulation_time() -> None:
 
 
 def test_simulation_missing_file() -> None:
-    sim = simulation.EnergyPlusSimulation("does_not_exist", honolulu, {}, {})
+    sim = simulation.EnergyPlusSimulation(Path("does_not_exist"), honolulu, {}, {})
 
     with pytest.raises(simulation.SimulationCrashed):
         sim.start()

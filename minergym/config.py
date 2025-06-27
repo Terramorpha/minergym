@@ -108,7 +108,7 @@ def auto_add_energy(
 
 
 def auto_add_time(
-    ont: Ontology, obs_template: dict[str, any]
+    ont: Ontology, obs_template: dict[str, Any]
 ) -> None:
     """Add ubiquitous variables."""
 

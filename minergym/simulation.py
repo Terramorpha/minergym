@@ -9,13 +9,15 @@ This module only cares about control.
 
 import pyenergyplus.api
 import threading
-import minergym.template as template
 import collections
 from dataclasses import dataclass, field
 import typing
 import queue
 import pathlib
 import traceback
+import optree
+from pathlib import Path
+from ctypes import c_void_p
 
 api = pyenergyplus.api.EnergyPlusAPI()
 
@@ -91,7 +93,7 @@ class InvalidMeter(Exception):
 
 @dataclass(frozen=True, slots=True)
 class FunctionHole:
-    function: typing.Callable[[int], typing.Any]
+    function: typing.Callable[[c_void_p], typing.Any]
 
 
 T = typing.TypeVar("T")
@@ -137,16 +139,21 @@ class Channel(typing.Generic[T]):
         self.closed = True
 
 
+# types for things
+
+_AnyHandle = VariableHandle | MeterHandle | ActuatorHandle | FunctionHole
+_AnyHole = VariableHole | MeterHole | ActuatorHole | FunctionHole
+
 @dataclass(slots=True)
 class EnergyPlusSimulation:
 
     """"""
 
     """The building file used for the simulation."""
-    building_path: str
+    building_path: Path
 
     """The weather file used for the simulation."""
-    weather_path: str
+    weather_path: Path
 
     """A PyTree containing `Variable` and `Meter` leaves."""
     observation_template: typing.Any
@@ -166,7 +173,7 @@ class EnergyPlusSimulation:
     max_steps: int = 10_000
 
     """The directory in which energyplus will write its log files."""
-    log_dir: str = "eplus_output"
+    log_dir: Path = Path("eplus_output")
 
     """Wether to let energyplus print a bunch of stuff to stdout."""
     verbose: bool = True
@@ -176,9 +183,9 @@ class EnergyPlusSimulation:
     obs_chan: Channel = field(default_factory=Channel)
     act_chan: Channel = field(default_factory=Channel)
 
-    state: typing.Union[None, int] = field(default=None, init=False)
+    state: typing.Union[None, c_void_p] = field(default=None, init=False)
 
-    def callback_timestep(self, state: int) -> None:
+    def callback_timestep(self, state: c_void_p) -> None:
         try:
 
             if not api.exchange.api_data_fully_ready(state):
@@ -197,33 +204,20 @@ class EnergyPlusSimulation:
             if self.observation_handles is None:
                 self.construct_handles(state)
 
-            # We replace each Variable handle by its value,
-            var_replaced = template.search_replace(
-                self.observation_handles,
-                VariableHandle,
-                lambda han: api.exchange.get_variable_value(state, han.handle),
-            )
-            # then each Meter handle by its value
-            meter_replaced = template.search_replace(
-                var_replaced,
-                MeterHandle,
-                lambda han: api.exchange.get_meter_value(state, han.handle),
-            )
+            def get_handle_value(han : _AnyHandle) -> float:
+                if isinstance(han, VariableHandle):
+                    return api.exchange.get_variable_value(state, han.handle)
+                elif isinstance(han, MeterHandle):
+                    return api.exchange.get_meter_value(state, han.handle)
+                elif isinstance(han, ActuatorHandle):
+                    return api.exchange.get_actuator_value(state, han.handle)
+                elif isinstance(han, FunctionHole):
+                    result = han.function(state)
+                    return result
+                else:
+                    raise Exception(f"got a weird thing: {han}")
 
-            # then each Actuator by its value
-            actuator_replaced = template.search_replace(
-                meter_replaced,
-                ActuatorHandle,
-                lambda han: api.exchange.get_actuator_value(state, han.handle),
-            )
-
-            # and finally, each Function(f) by Function(inner=f(state))
-            function_replaced = template.search_replace(
-                actuator_replaced,
-                FunctionHole,
-                lambda fn: fn.function(state),
-            )
-            obs = function_replaced
+            obs = optree.tree_map(get_handle_value, self.observation_handles)
 
             if not (self.n_steps < self.max_steps):
                 api.runtime.stop_simulation(state)
@@ -253,7 +247,7 @@ class EnergyPlusSimulation:
             tb_exc = traceback.TracebackException.from_exception(e)
             self.obs_chan.put(_ExceptionResult(tb_exc, e))
 
-    def construct_handles(self, state: int) -> None:
+    def construct_handles(self, state: c_void_p) -> None:
         if self.verbose:
             print("constructing handles")
 
@@ -261,51 +255,44 @@ class EnergyPlusSimulation:
         # running simulation) into a not-so-human-readable numerical handle.
         # This is what we do here.
 
-        def get_var_handle(var: VariableHole) -> VariableHandle:
-            han = api.exchange.get_variable_handle(
-                state,
-                var.variable_name,
-                var.variable_key,
-            )
-            if han < 0:
-                raise InvalidVariable(var)
-            return VariableHandle(han)
+        def get_hole_handle(o: _AnyHole) -> _AnyHandle:
+            if isinstance(o, VariableHole):
+                var = o
+                han = api.exchange.get_variable_handle(
+                    state,
+                    var.variable_name,
+                    var.variable_key,
+                )
+                if han < 0:
+                    raise InvalidVariable(var)
+                return VariableHandle(han)
+            elif isinstance(o, MeterHole):
+                met = o
+                han = api.exchange.get_meter_handle(state, met.meter_name)
+                if han < 0:
+                    raise InvalidMeter(met)
+                return MeterHandle(han)
+            elif isinstance(o, ActuatorHole):
+                act = o
+                han = api.exchange.get_actuator_handle(
+                    state,
+                    act.component_type,
+                    act.control_type,
+                    act.actuator_key,
+                )
+                if han < 0:
+                    raise InvalidActuator(act)
+                return ActuatorHandle(han)
+            elif isinstance(o, FunctionHole):
+                # We don't need to turn it into anything else.
+                return o
+            else:
+                raise Exception(f"got a weird thing: {o}")
 
-        with_variable_handles = template.search_replace(
+        self.observation_handles = optree.tree_map(
+            get_hole_handle,
             self.observation_template,
-            VariableHole,
-            get_var_handle,
         )
-
-        def get_meter_handle(met: MeterHole) -> MeterHandle:
-            han = api.exchange.get_meter_handle(state, met.meter_name)
-            if han < 0:
-                raise InvalidMeter(met)
-            return MeterHandle(han)
-
-        with_meter_handles = template.search_replace(
-            with_variable_handles,
-            MeterHole,
-            get_meter_handle,
-        )
-
-        def get_actuator_handle(act: ActuatorHole) -> ActuatorHandle:
-            han = api.exchange.get_actuator_handle(
-                state,
-                act.component_type,
-                act.control_type,
-                act.actuator_key,
-            )
-            if han < 0:
-                raise InvalidActuator(act)
-            return ActuatorHandle(han)
-
-        with_actuator_handles = template.search_replace(
-            with_meter_handles,
-            ActuatorHole,
-            get_actuator_handle,
-        )
-        self.observation_handles = with_actuator_handles
 
         for k, act in self.actuators.items():
             han = api.exchange.get_actuator_handle(
@@ -321,15 +308,17 @@ class EnergyPlusSimulation:
             """Thread running the energyplus simulation."""
             exit_code = None
             try:
+
+                args: list[str] = [
+                    "-d",
+                    str(self.log_dir),
+                    "-w",
+                    str(self.weather_path),
+                    str(self.building_path),
+                ]
                 exit_code = api.runtime.run_energyplus(
                     state,
-                    [
-                        "-d",
-                        self.log_dir,
-                        "-w",
-                        self.weather_path,
-                        self.building_path,
-                    ],
+                    args,
                 )
                 self.obs_chan.put(_DoneResult(exit_code))
             except Exception as e:
@@ -342,14 +331,19 @@ class EnergyPlusSimulation:
                 self.act_chan.close()
 
         # We must request access to Variable before the simulation is started.
-        template.search_replace(
+        def request_var(var):
+            if isinstance(var, VariableHole):
+                api.exchange.request_variable(
+                    state,
+                    var.variable_name,
+                    var.variable_key,
+                )
+
+        # breakpoint()
+        optree.tree_map(
+            request_var,
             self.observation_template,
-            VariableHole,
-            lambda var: api.exchange.request_variable(
-                state,
-                var.variable_name,
-                var.variable_key,
-            ),
+            is_leaf=lambda x: isinstance(x, VariableHole),
         )
 
         api.runtime.callback_begin_system_timestep_before_predictor(
