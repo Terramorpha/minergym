@@ -178,6 +178,11 @@ WHERE {
         """Compute a graph of adjacent zones using `BuildingSurface:Detailed`
         objects and the `outside_boundary_condition_object` property."""
 
+        out = {}
+
+        for node in self.zones():
+            out.setdefault(node, set())
+
         q = """# -*- mode: sparql -*-
 SELECT ?zoneA ?zoneB
 WHERE {
@@ -197,11 +202,10 @@ WHERE {
 }
 """
 
-        out = {}
 
         for r in self.rdf.query(q):
-            out.setdefault(r.zoneA, set()).add(r.zoneB)
-            out.setdefault(r.zoneB, set()).add(r.zoneB)
+            out[r.zoneA].add(r.zoneB)
+            out[r.zoneB].add(r.zoneA)
 
         return out
 
