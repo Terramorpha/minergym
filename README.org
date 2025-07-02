@@ -159,7 +159,7 @@ obs, info = gymenv.reset()
    3. convert it to the =epJSON= format using
       =$ENERGYPLUS_PATH/bin/ConvertInputFormat=.
 
-3. Use the ~minergym.query_info.rdf_from_json~ function to parse the
+3. Use the ~minergym.ontology.Ontology.from_json~ function to parse the
    building file. It gives you an rdf representation of every entity which will
    be useful for the procedures in =config= to generate an observation template.
 
