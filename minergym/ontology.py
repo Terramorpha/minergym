@@ -1,10 +1,12 @@
+import json
+from dataclasses import dataclass
+from pathlib import Path
+from typing import List, TypeAlias, TypeVar
+
 import rdflib
 from rdflib.namespace import RDF
 from rdflib.term import Node
-from typing import List, TypeAlias, Self, TypeVar, reveal_type
-from dataclasses import dataclass
-from pathlib import Path
-import json
+from typing_extensions import Self
 
 T = TypeVar("T")
 Point: TypeAlias = tuple[float, float, float]
@@ -12,6 +14,7 @@ ZoneSurfacePointHierarchy: TypeAlias = dict[Node, dict[Node, List[Point]]]
 UndirectedGraph: TypeAlias = dict[T, frozenset[T]]
 
 IDF = rdflib.Namespace("https://energyplus.net/")
+
 
 def create_rdf_list(graph: rdflib.Graph, items: list[Node]):
     last = RDF.nil
@@ -24,6 +27,7 @@ def create_rdf_list(graph: rdflib.Graph, items: list[Node]):
         graph.add((last, RDF.type, RDF.List))
 
     return last
+
 
 def intern_object(graph: rdflib.Graph, obj) -> Node:
     if isinstance(obj, str):
@@ -55,7 +59,9 @@ class Ontology:
     def from_object(cls, obj) -> Self:
         g = rdflib.Graph()
 
+        assert isinstance(obj, dict), "Input doesn't seem to be a valid epJSON"
         for type_name, value in obj.items():
+            assert isinstance(value, dict), "Input doesn't seem to be a valid epJSON"
             for obj_name, contents in value.items():
                 g.add((rdflib.Literal(obj_name), RDF.type, rdflib.Literal(type_name)))
 
@@ -80,12 +86,12 @@ class Ontology:
 
         return cls.from_object(obj)
 
-
     def all_triples(self) -> list[tuple[Node, Node, Node]]:
         """Return every single triple in the ontology."""
 
         return [
-            (a,b,c) for (a,b,c) in self.rdf.query("SELECT ?a ?b ?c WHERE {?a ?b ?c .}")
+            (a, b, c)
+            for (a, b, c) in self.rdf.query("SELECT ?a ?b ?c WHERE {?a ?b ?c .}")
         ]
 
     def zones(self) -> List[Node]:
@@ -128,7 +134,6 @@ WHERE {
     }"""
         return [r.surface for r in self.rdf.query(q, initBindings={"zone": zone})]
 
-
     def surface_vertices(self, surface: Node) -> list[Point]:
         """Return the vertices of a surface."""
         q = """# -*- mode: sparql -*-
@@ -144,15 +149,12 @@ WHERE {
     }"""
         return [
             (x.toPython(), y.toPython(), z.toPython())
-            for (x,y,z) in self.rdf.query(q, initBindings={"surface": surface})
+            for (x, y, z) in self.rdf.query(q, initBindings={"surface": surface})
         ]
 
     def zone_surface_point_hierarchy(self) -> ZoneSurfacePointHierarchy:
         return {
-            z : {
-                s : [v for v in self.surface_vertices(s)]
-                for s in self.zone_surfaces(z)
-            }
+            z: {s: [v for v in self.surface_vertices(s)] for s in self.zone_surfaces(z)}
             for z in self.zones()
         }
 
@@ -172,7 +174,6 @@ WHERE {
                 pointset_to_surfaces.setdefault(frozenset(vertices), set()).add(surface)
 
         return pointset_to_surfaces
-
 
     def zone_adjacency(self) -> UndirectedGraph[Node]:
         """Compute a graph of adjacent zones using `BuildingSurface:Detailed`
@@ -201,7 +202,6 @@ WHERE {
   ?surfaceB idf:outside_boundary_condition_object ?surfaceA .
 }
 """
-
 
         for r in self.rdf.query(q):
             out[r.zoneA].add(r.zoneB)
@@ -237,6 +237,7 @@ WHERE {
             assert isinstance(n, int)
             return n
         raise Exception("Could not find anything.")
+
 
 def undirected_graph_to_dot(g: UndirectedGraph[T]) -> str:
     o = ""
