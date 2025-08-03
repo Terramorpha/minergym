@@ -7,44 +7,41 @@ This module only cares about control.
 
 """
 
-import pyenergyplus.api
-import threading
 import collections
-from dataclasses import dataclass, field
-import typing
-import queue
 import pathlib
+import queue
+import threading
 import traceback
+import weakref
+from ctypes import c_void_p
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import Any, Callable, Generic, TypeVar, Union
+
 import optree
 import optree.typing
-from pathlib import Path
-from ctypes import c_void_p
+import pyenergyplus.api
+
+from .channel import Channel
 
 api = pyenergyplus.api.EnergyPlusAPI()
 
 
-class SimulationCrashed(Exception):
-    pass
+@dataclass
+class ManagedState:
+    inner: c_void_p
+
+    def __init__(self):
+        s = api.state_manager.new_state()
+        self.inner = s
+
+        def delete_state(ep_state: c_void_p):
+            api.state_manager.delete_state(ep_state)
+
+        weakref.finalize(self, delete_state, s)
 
 
-@dataclass(frozen=True, slots=True)
-class _StepResult:
-    observation: typing.Any
-    finished: bool
-
-
-@dataclass(frozen=True, slots=True)
-class _DoneResult:
-    exit_code: int
-
-
-@dataclass(frozen=True, slots=True)
-class _ExceptionResult:
-    tb: traceback.TracebackException
-    exn: Exception
-
-
-_Result = typing.Union[_StepResult, _DoneResult, _ExceptionResult]
+# Template holes and handles
 
 
 @dataclass(frozen=True, slots=True)
@@ -94,50 +91,7 @@ class InvalidMeter(Exception):
 
 @dataclass(frozen=True, slots=True)
 class FunctionHole:
-    function: typing.Callable[[c_void_p], typing.Any]
-
-
-T = typing.TypeVar("T")
-
-
-class Channel(typing.Generic[T]):
-    """Since we are running the Energyplus simulation in a different thread, we
-    need a mechanism for the user thread (the one in which the user might
-    presumably run their policy and the .step function) to exchange actuator
-    values sensor values. Moreover, this communication mechanism must act as a
-    rendezvous point: a chan.put() must return only if a chan.get() has been
-    executed on the other thread.
-
-    """
-
-    _q: queue.Queue[queue.Queue[T]]
-    _closed: bool
-
-    def __init__(self):
-        self.q = queue.Queue()
-        self.closed = False
-
-    def put(self, v: T) -> None:
-        assert not self.closed
-
-        wait_q = self.q.get()
-        wait_q.put(v)
-
-    def get(self) -> T:
-        assert not self.closed
-        wait_q: queue.Queue[T] = queue.Queue()
-        self.q.put(wait_q)
-
-        return wait_q.get()
-
-    def close(self) -> None:
-        """Close the channel. In python 3.13, we will be able to call
-        .shutdown() on a queue, which will remove the possible race condition
-        that happens when .close() is run at the same time as .put() or .get().
-        """
-
-        assert not self.closed
-        self.closed = True
+    function: Callable[[c_void_p], Any]
 
 
 # types for things
@@ -145,9 +99,91 @@ class Channel(typing.Generic[T]):
 _AnyHandle = VariableHandle | MeterHandle | ActuatorHandle | FunctionHole
 AnyHole = VariableHole | MeterHole | ActuatorHole | FunctionHole
 
+
+# communication choregraphy
+
+
+@dataclass(frozen=True, slots=True)
+class ShutDown:
+    pass
+
+
+@dataclass(frozen=True, slots=True)
+class RunAction:
+    act: Any
+
+
+@dataclass(frozen=True, slots=True)
+class ICrashed:
+    exception: Exception
+
+
+@dataclass(frozen=True, slots=True)
+class IShutDown:
+    pass
+
+
+@dataclass(frozen=True, slots=True)
+class IWantAction:
+    response: Channel[RunAction | ShutDown]
+
+
+@dataclass(frozen=True, slots=True)
+class IGotObservation:
+    observation: Any
+
+
+E2PMessage = IWantAction | IGotObservation | IShutDown | ICrashed
+
+
+class InvalidStateException(Exception):
+    def __init__(self, wanted, got):
+        super().__init__(f"Simulation is in invalid state. Wanted: {wanted}, is: {got}")
+
+
+@dataclass(slots=True, frozen=True)
+class StateInit:
+    pass
+
+
+@dataclass(slots=True)
+class StateStarting:
+    ep_state: ManagedState
+    ep_thread: threading.Thread
+
+    channel: Channel[E2PMessage]
+
+    number_of_warmup_phases_completed: int = 0
+
+
+@dataclass(slots=True)
+class StateStarted:
+    ep_state: ManagedState
+    ep_thread: threading.Thread
+
+    channel: Channel[E2PMessage]
+
+    observation_handles: Any
+    actuator_handles: Any
+
+    last_observation: Any
+
+
+@dataclass(slots=True, frozen=True)
+class StateDone:
+    last_observation: Any
+
+
+@dataclass(slots=True, frozen=True)
+class StateCrashed:
+    pass
+
+
+SimulationState = Union[StateInit, StateStarted, StateDone, StateCrashed]
+
+
 @dataclass(slots=True)
 class EnergyPlusSimulation:
-
     """"""
 
     """The building file used for the simulation."""
@@ -160,11 +196,6 @@ class EnergyPlusSimulation:
     observation_template: optree.typing.PyTree[AnyHole]
 
     actuators: optree.typing.PyTree[ActuatorHole]
-
-    """ A PyTree of the same shape, but containing the associated handles."""
-    observation_handles: typing.Any = None
-
-    number_of_warmup_phases_completed: int = 0
 
     warmup_phases: int = 5
 
@@ -179,79 +210,102 @@ class EnergyPlusSimulation:
     """Wether to let energyplus print a bunch of stuff to stdout."""
     verbose: bool = True
 
-    actuator_handles: typing.Dict[str, int] = field(default_factory=dict)
+    state: SimulationState = field(default=StateInit(), init=False)
 
-    obs_chan: Channel = field(default_factory=Channel)
-    act_chan: Channel = field(default_factory=Channel)
+    def _reverse_step(self):
+        """Send the current observation, then receive an action and run it."""
 
-    state: typing.Union[None, c_void_p] = field(default=None, init=False)
+        def get_handle_value(ep_state: c_void_p, han: _AnyHandle) -> float:
+            if isinstance(han, VariableHandle):
+                return api.exchange.get_variable_value(ep_state, han.handle)
+            elif isinstance(han, MeterHandle):
+                return api.exchange.get_meter_value(ep_state, han.handle)
+            elif isinstance(han, ActuatorHandle):
+                return api.exchange.get_actuator_value(ep_state, han.handle)
+            elif isinstance(han, FunctionHole):
+                result = han.function(ep_state)
+                return result
+            else:
+                raise Exception(f"got a weird thing: {han}")
 
-    def callback_timestep(self, state: c_void_p) -> None:
-        try:
+        if isinstance(self.state, StateStarted):
+            state = self.state
+            obs = optree.tree_map(
+                lambda han: get_handle_value(state.ep_state.inner, han),
+                self.state.observation_handles,
+            )
 
-            if not api.exchange.api_data_fully_ready(state):
+            self.state.last_observation = obs
+            self.state.channel.put(IGotObservation(obs))
+
+            response_chan = Channel[RunAction | ShutDown]()
+            self.state.channel.put(IWantAction(response_chan))
+
+            response = response_chan.get()
+            if isinstance(response, RunAction):
+                act = response.act
+                # same path and set its value.
+                for accessor in optree.tree_accessors(act):
+                    h: ActuatorHandle = accessor(self.state.actuator_handles)
+                    the_value = accessor(act)
+                    api.exchange.set_actuator_value(
+                        self.state.ep_state.inner, h.handle, the_value
+                    )
+            elif isinstance(response, ShutDown):
+                api.runtime.stop_simulation(self.state.ep_state.inner)
                 return
 
-            if api.exchange.warmup_flag(state):
+    def callback_timestep(self, _) -> None:
+        if isinstance(self.state, StateStarting):
+            if not api.exchange.api_data_fully_ready(self.state.ep_state.inner):
+                return
+
+            if api.exchange.warmup_flag(self.state.ep_state.inner):
                 return
 
             # The energyplus simulator has 5 warmup phases. If we start
             # evaluating setpoints and sending observations before all the
             # warmup phases are all done, the policy will see the date jump
             # around, which is bad.
-            if self.number_of_warmup_phases_completed < self.warmup_phases:
+            if self.state.number_of_warmup_phases_completed < self.warmup_phases:
                 return
 
-            if self.observation_handles is None:
-                self.construct_handles(state)
-
-            def get_handle_value(han : _AnyHandle) -> float:
-                if isinstance(han, VariableHandle):
-                    return api.exchange.get_variable_value(state, han.handle)
-                elif isinstance(han, MeterHandle):
-                    return api.exchange.get_meter_value(state, han.handle)
-                elif isinstance(han, ActuatorHandle):
-                    return api.exchange.get_actuator_value(state, han.handle)
-                elif isinstance(han, FunctionHole):
-                    result = han.function(state)
-                    return result
-                else:
-                    raise Exception(f"got a weird thing: {han}")
-
-            obs = optree.tree_map(get_handle_value, self.observation_handles)
-
-            if not (self.n_steps < self.max_steps):
-                api.runtime.stop_simulation(state)
-                return
-            self.obs_chan.put(
-                _StepResult(
-                    observation=obs,
-                    finished=False,
+            try:
+                obs, act = self.construct_handles(self.state.ep_state.inner)
+                new_state = StateStarted(
+                    self.state.ep_state,
+                    self.state.ep_thread,
+                    self.state.channel,
+                    obs,
+                    act,
+                    None,
                 )
-            )
-
-            # TODO: explain why this is here
-            # In case of early return, because after receiving a StopStep
-            # signal, the caller will not give other actuator values to set.
-            act = self.act_chan.get()
-            if not isinstance(act, dict):
+            except Exception as e:
+                api.runtime.stop_simulation(self.state.ep_state.inner)
+                old_state = self.state
+                self.state = StateCrashed()
+                old_state.channel.put(ICrashed(e))
                 return
 
-            # For each leaf in the tree, we find the `ActuatorHandle` with the
-            # same path and set its value.
-            for accessor in optree.tree_accessors(act):
-                h: ActuatorHandle = accessor(self.actuator_handles)
-                the_value = accessor(act)
-                api.exchange.set_actuator_value(state, h.handle, the_value)
+            self.state = new_state  # type: ignore
 
-            self.n_steps += 1
+            try:
+                self._reverse_step()
+            except Exception as e:
+                api.runtime.stop_simulation(self.state.ep_state.inner)
+                old_state = self.state
+                self.state = StateCrashed()
+                old_state.channel.put(ICrashed(e))
+                return
 
-        except Exception as e:
-            api.runtime.stop_simulation(state)
-            tb_exc = traceback.TracebackException.from_exception(e)
-            self.obs_chan.put(_ExceptionResult(tb_exc, e))
+        elif isinstance(self.state, StateStarted):
+            self._reverse_step()
+        else:
+            raise Exception("TODO")
 
-    def construct_handles(self, state: c_void_p) -> None:
+        self.n_steps += 1
+
+    def construct_handles(self, state: c_void_p) -> tuple[Any, Any]:
         if self.verbose:
             print("constructing handles")
 
@@ -293,57 +347,85 @@ class EnergyPlusSimulation:
             else:
                 raise Exception(f"got a weird thing: {o}")
 
-        self.observation_handles = optree.tree_map(
+        observation_handles = optree.tree_map(
             get_hole_handle,
             self.observation_template,
         )
 
         def get_actuator_handle(act: ActuatorHole) -> ActuatorHandle:
-            return ActuatorHandle(api.exchange.get_actuator_handle(
-                state, act.component_type, act.control_type, act.actuator_key
-            ))
+            return ActuatorHandle(
+                api.exchange.get_actuator_handle(
+                    state, act.component_type, act.control_type, act.actuator_key
+                )
+            )
 
-        self.actuator_handles = optree.tree_map(
+        actuator_handles = optree.tree_map(
             get_actuator_handle,
             self.actuators,
         )
 
+        return observation_handles, actuator_handles
 
-    def start(self) -> typing.Tuple[typing.Any, bool]:
-        state = api.state_manager.new_state()
-        self.state = state
+    def start(self) -> tuple[Any, bool]:
+        managed_ep_state: ManagedState = ManagedState()
 
         def eplus_thread():
             """Thread running the energyplus simulation."""
-            exit_code = None
-            try:
+            if not isinstance(self.state, StateStarting):
+                raise InvalidStateException()
+            args: list[str | bytes] = [
+                "-d",
+                str(self.log_dir),
+                "-w",
+                str(self.weather_path),
+                str(self.building_path),
+            ]
 
-                args: list[str] = [
-                    "-d",
-                    str(self.log_dir),
-                    "-w",
-                    str(self.weather_path),
-                    str(self.building_path),
-                ]
-                exit_code = api.runtime.run_energyplus(
-                    state,
-                    args,
-                )
-                self.obs_chan.put(_DoneResult(exit_code))
-            except Exception as e:
-                tb_exc = traceback.TracebackException.from_exception(e)
-                self.obs_chan.put(_ExceptionResult(tb_exc, e))
-            finally:
-                api.state_manager.delete_state(state)
-                del self.state
-                self.obs_chan.close()
-                self.act_chan.close()
+            exit_code = api.runtime.run_energyplus(
+                managed_ep_state.inner,
+                args,
+            )
+
+            old_state = self.state
+
+            if exit_code == 0:
+                if isinstance(self.state, StateStarted):
+                    self.state = StateDone(self.state.last_observation)
+                    old_state.channel.put(IShutDown())
+                elif isinstance(self.state, StateCrashed):
+                    # If the simulation exited abnormally, we don't need to change
+                    # the state as that has already been done by the code that
+                    # caught the exception.
+                    pass
+                else:
+                    assert False, "Should be unreachable."
+            else:
+                old_state = self.state
+                if isinstance(self.state, StateStarting):
+                    # probably a problem in the epjson file or something like that
+                    self.state = StateCrashed()
+                    old_state.channel.put(
+                        ICrashed(
+                            Exception(
+                                "Simulation crashed before it could produce a single observation."
+                            )
+                        )
+                    )
+
+                elif isinstance(self.state, StateStarted):
+                    # probably an "invalid input" problem
+                    self.state = StateCrashed()
+                    old_state.channel.put(
+                        ICrashed(Exception("Simulation crashed while running."))
+                    )
+                else:
+                    assert False, "Should be unreachable."
 
         # We must request access to Variable before the simulation is started.
         def request_var(var):
             if isinstance(var, VariableHole):
                 api.exchange.request_variable(
-                    state,
+                    managed_ep_state.inner,
                     var.variable_name,
                     var.variable_key,
                 )
@@ -356,56 +438,86 @@ class EnergyPlusSimulation:
         )
 
         api.runtime.callback_begin_system_timestep_before_predictor(
-            state, self.callback_timestep
+            managed_ep_state.inner, self.callback_timestep
         )
 
-        def warmup_callback(state: int):
+        def warmup_callback(state: c_void_p):
             if self.verbose:
                 print("warmup phase complete")
 
-            self.number_of_warmup_phases_completed += 1
+            if isinstance(self.state, StateStarting):
+                self.state.number_of_warmup_phases_completed += 1
 
-        api.runtime.set_console_output_status(state, self.verbose)
+        api.runtime.set_console_output_status(managed_ep_state.inner, self.verbose)
 
         api.runtime.callback_after_new_environment_warmup_complete(
-            state, warmup_callback
+            managed_ep_state.inner, warmup_callback
         )
 
         thread = threading.Thread(target=eplus_thread, daemon=True)
+        new_state = StateStarting(
+            managed_ep_state,
+            thread,
+            Channel(),
+        )
+        self.state = new_state
         thread.start()
 
-        return self._get_obs_and_filter()
-
-    def _filter(self, result: _Result) -> typing.Tuple[typing.Any, bool]:
-        if isinstance(result, _StepResult):
-            return (result.observation, result.finished)
-        elif isinstance(result, _DoneResult):
-            if result.exit_code != 0:
-                raise SimulationCrashed(
-                    "energyplus exited with an error. See the eplusout.err file"
-                )
-            else:
-                return ({}, True)
-        elif isinstance(result, _ExceptionResult):
-            raise result.exn
+        msg = self.state.channel.get()
+        if isinstance(msg, IGotObservation):
+            return msg.observation, False
+        elif isinstance(msg, ICrashed):
+            raise msg.exception
         else:
-            raise Exception(
-                "this channel should receive only a `StepResult` or a `DoneResult`."
-            )
+            assert False, "Should be unreachable."
 
-    def _get_obs_and_filter(self) -> typing.Tuple[typing.Any, bool]:
-        return self._filter(self.obs_chan.get())
+    def step(self, action: dict[str, float]) -> tuple[Any, bool]:
+        if not isinstance(self.state, StateStarted):
+            raise InvalidStateException(StateStarted, self.state)
 
-    def step(self, action: typing.Dict[str, float]) -> typing.Tuple[typing.Any, bool]:
-        self.act_chan.put(action)
-        return self._get_obs_and_filter()
+        msg1 = self.state.channel.get()
+        if isinstance(msg1, IWantAction):
+            msg1.response.put(RunAction(action))
+            msg2 = self.state.channel.get()
+            if isinstance(msg2, IGotObservation):
+                obs = msg2.observation
+                return obs, False
+            elif isinstance(msg2, IShutDown):
+                return self.state.last_observation, True
+            elif isinstance(msg2, ICrashed):
+                raise msg2.exception
+            else:
+                assert False, "Should be unreachable."
+        else:
+            raise Exception("TODO")
+
+    def stop(self):
+        if not isinstance(self.state, StateStarted):
+            raise InvalidStateException(StateStarted, self.state)
+
+        state = self.state
+        msg1 = state.channel.get()
+        if isinstance(msg1, IWantAction):
+            msg1.response.put(ShutDown())
+
+            msg2 = state.channel.get()
+            if isinstance(msg2, IShutDown):
+                return  # All is good
+            else:
+                assert False, "Should be unreachable."
+
+        else:
+            assert False, "Should be unreachable."
 
     def get_api_endpoints(
         self,
-    ) -> typing.List[typing.Union[ActuatorHole, VariableHole, MeterHole]]:
-        exchange_points = api.exchange.get_api_data(self.state)
+    ) -> list[Union[ActuatorHole, VariableHole, MeterHole]]:
+        if not isinstance(self.state, StateStarted):
+            raise InvalidStateException(StateStarted, self.state)
 
-        out: typing.List[typing.Union[ActuatorHole, VariableHole, MeterHole]] = []
+        exchange_points = api.exchange.get_api_data(self.state.ep_state.inner)
+
+        out: list[Union[ActuatorHole, VariableHole, MeterHole]] = []
         for v in exchange_points:
             if v.what == "Actuator":
                 out.append(ActuatorHole(v.name, v.type, v.key))

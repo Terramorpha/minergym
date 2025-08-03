@@ -1,26 +1,27 @@
-import minergym.simulation as simulation
+import gymnasium
 import minergym.environment as environment
+import minergym.simulation as simulation
+import numpy as np
 from minergym.data.building import crawlspace
 from minergym.data.weather import honolulu
 
-import gymnasium
-import numpy as np
+
+def make_energyplus():
+    return simulation.EnergyPlusSimulation(
+        crawlspace,
+        honolulu,
+        None,
+        {},
+        max_steps=100,
+    )
+
+
+empty_space = gymnasium.spaces.Box(
+    low=np.array([]), high=np.array([]), shape=(0,), dtype=np.float32
+)
 
 
 def test_environment() -> None:
-    def make_energyplus():
-        return simulation.EnergyPlusSimulation(
-            crawlspace,
-            honolulu,
-            None,
-            {},
-            max_steps=100,
-        )
-
-    empty_space = gymnasium.spaces.Box(
-        low=np.array([]), high=np.array([]), shape=(0,), dtype=np.float32
-    )
-
     env = environment.EnergyPlusEnvironment(
         make_energyplus,
         lambda _: 0.0,
@@ -34,3 +35,13 @@ def test_environment() -> None:
     done = False
     while not done:
         obs, reward, done, _, _ = env.step(np.array([]))
+
+
+# def test_reset() -> None:
+#     env = environment.EnergyPlusEnvironment(
+#         make_energyplus,
+#         lambda _: 0.0,
+#         empty_space,
+#         lambda _: np.array([]),
+#         empty_space
+#     )

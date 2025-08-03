@@ -1,20 +1,10 @@
-import minergym.simulation as simulation
-from minergym.data.building import crawlspace
-from minergym.data.weather import honolulu
 from importlib import resources
 from pathlib import Path
+
+import minergym.simulation as simulation
 import pytest
-
-
-def test_simulation_separate() -> None:
-    sim1 = simulation.EnergyPlusSimulation(
-        crawlspace, honolulu, None, {}, max_steps=100
-    )
-    sim2 = simulation.EnergyPlusSimulation(
-        crawlspace, honolulu, None, {}, max_steps=100
-    )
-
-    assert sim1.obs_chan is not sim2.obs_chan
+from minergym.data.building import crawlspace
+from minergym.data.weather import honolulu
 
 
 def test_simulation_runs() -> None:
@@ -27,7 +17,6 @@ def test_simulation_runs() -> None:
 
 
 def test_simulation_obs() -> None:
-
     obs_template = {
         "temp": simulation.VariableHole("ZONE AIR TEMPERATURE", "crawlspace")
     }
@@ -40,7 +29,6 @@ def test_simulation_obs() -> None:
 
 
 def test_simulation_invalid_variable() -> None:
-
     # an invalid variable
     obs_template = simulation.VariableHole("", "")
 
@@ -53,7 +41,6 @@ def test_simulation_invalid_variable() -> None:
 
 
 def test_simulation_invalid_meter() -> None:
-
     obs_template = simulation.MeterHole("")
 
     sim = simulation.EnergyPlusSimulation(
@@ -87,7 +74,7 @@ def test_simulation_time() -> None:
 def test_simulation_missing_file() -> None:
     sim = simulation.EnergyPlusSimulation(Path("does_not_exist"), honolulu, {}, {})
 
-    with pytest.raises(simulation.SimulationCrashed):
+    with pytest.raises(Exception):
         sim.start()
 
 
@@ -103,32 +90,71 @@ def test_get_api_endpoints() -> None:
     # Will crash is some unknown api object is encountered
     sim.get_api_endpoints()
 
-def test_simulation_set_actuator_value() -> None:
 
+def test_simulation_set_actuator_value() -> None:
     actuators = {
-        "heating_sch": simulation.ActuatorHole(component_type="Schedule:Compact", control_type="Schedule Value", actuator_key="heating_sch"),
-        "cooling_sch": simulation.ActuatorHole(component_type="Schedule:Compact", control_type="Schedule Value", actuator_key="cooling_sch"),
+        "heating_sch": simulation.ActuatorHole(
+            component_type="Schedule:Compact",
+            control_type="Schedule Value",
+            actuator_key="heating_sch",
+        ),
+        "cooling_sch": simulation.ActuatorHole(
+            component_type="Schedule:Compact",
+            control_type="Schedule Value",
+            actuator_key="cooling_sch",
+        ),
     }
 
-    sim = simulation.EnergyPlusSimulation(crawlspace, honolulu, actuators, actuators, max_steps=100)
+    sim = simulation.EnergyPlusSimulation(
+        crawlspace, honolulu, actuators, actuators, max_steps=100
+    )
     sim.start()
 
-    obs, done = sim.step( {"heating_sch": 15})
+    obs, done = sim.step({"heating_sch": 15})
     # Right after we set the actuator, it should have the right value.
     assert obs["heating_sch"] == 15
 
 
 def test_simulation_structured_actuators() -> None:
-
     actuators = {
-        "zone_1" : {
-            "heating_sch": simulation.ActuatorHole(component_type="Schedule:Compact", control_type="Schedule Value", actuator_key="heating_sch"),
-            "cooling_sch": simulation.ActuatorHole(component_type="Schedule:Compact", control_type="Schedule Value", actuator_key="cooling_sch"),
+        "zone_1": {
+            "heating_sch": simulation.ActuatorHole(
+                component_type="Schedule:Compact",
+                control_type="Schedule Value",
+                actuator_key="heating_sch",
+            ),
+            "cooling_sch": simulation.ActuatorHole(
+                component_type="Schedule:Compact",
+                control_type="Schedule Value",
+                actuator_key="cooling_sch",
+            ),
         }
     }
 
-    sim = simulation.EnergyPlusSimulation(crawlspace, honolulu, actuators, actuators, max_steps=100)
+    sim = simulation.EnergyPlusSimulation(
+        crawlspace, honolulu, actuators, actuators, max_steps=100
+    )
     sim.start()
 
-    obs, done = sim.step( {"zone_1" : {"heating_sch": 15}} )
+    obs, done = sim.step({"zone_1": {"heating_sch": 15}})
     assert obs["zone_1"]["heating_sch"] == 15
+
+
+def test_simulation_stop() -> None:
+    sim = simulation.EnergyPlusSimulation(crawlspace, honolulu, None, {}, max_steps=100)
+
+    obs, done = sim.start()
+
+    assert isinstance(sim.state, simulation.StateStarted)
+
+    thread = sim.state.ep_thread
+
+    for _ in range(10):
+        assert obs is None
+        obs, done = sim.step({})
+
+    sim.stop()
+
+    assert isinstance(sim.state, simulation.StateDone)
+
+    assert not thread.is_alive()
