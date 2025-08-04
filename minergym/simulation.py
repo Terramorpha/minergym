@@ -492,6 +492,7 @@ class EnergyPlusSimulation:
             raise Exception("TODO")
 
     def stop(self):
+        """When in a started state, stop the simulation."""
         if not isinstance(self.state, StateStarted):
             raise InvalidStateException(StateStarted, self.state)
 
@@ -508,6 +509,19 @@ class EnergyPlusSimulation:
 
         else:
             assert False, "Should be unreachable."
+
+    def try_stop(self):
+        """When in any state, try to stop the simulation to free resources."""
+        if isinstance(self.state, StateInit):
+            # nothing to do
+            return
+        if isinstance(self.state, StateStarted):
+            self.stop()
+        elif isinstance(self.state, StateStarting):
+            raise NotImplemented
+        elif isinstance(self.state, StateCrashed):
+            # nothing to do
+            return
 
     def get_api_endpoints(
         self,

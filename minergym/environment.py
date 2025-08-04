@@ -5,11 +5,12 @@ trouble to any gymnasium consumer.
 
 """
 
-
 import typing
-import minergym.simulation as simulation
+from dataclasses import dataclass
+
 import gymnasium
 
+import minergym.simulation as simulation
 
 ObsType = typing.TypeVar("ObsType")
 ActType = typing.TypeVar("ActType")
@@ -57,6 +58,8 @@ class EnergyPlusEnvironment(gymnasium.Env, typing.Generic[ObsType, ActType]):
         typing.Any,  # Raw action
     ]
 
+    ep: simulation.EnergyPlusSimulation | None
+
     def __init__(
         self,
         make_energyplus: typing.Callable[[], simulation.EnergyPlusSimulation],
@@ -74,6 +77,7 @@ class EnergyPlusEnvironment(gymnasium.Env, typing.Generic[ObsType, ActType]):
 
         self.action_space = action_space
         self.action_transform = action_transform
+        self.ep = None
 
     def reset(
         self,
@@ -82,11 +86,16 @@ class EnergyPlusEnvironment(gymnasium.Env, typing.Generic[ObsType, ActType]):
         options: dict[str, typing.Any] | None = None,
     ) -> typing.Tuple[typing.Any, dict[str, typing.Any]]:
         super().reset()
+        if self.ep is not None:
+            self.ep.try_stop()
+
         self.ep = self.make_energyplus()
         obs, over = self.ep.start()
         return self.observation_transform(obs), {"raw_observation": obs}
 
     def step(self, action) -> typing.Tuple[ObsType, float, bool, bool, typing.Any]:
+        if self.ep is None:
+            raise Exception("Environment has not been started")
         # Do something about the actions
         a = self.action_transform(action)
         obs, finished = self.ep.step(a)
