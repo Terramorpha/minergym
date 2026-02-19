@@ -247,13 +247,16 @@ class EnergyPlusSimulation:
         if isinstance(self.state, StateStarted):
             state = self.state
 
-
-            debug_actuators = os.environ.get("MINERGYM_DEBUG_ACTUATORS", "").strip() == "1"
+            debug_actuators = (
+                os.environ.get("MINERGYM_DEBUG_ACTUATORS", "").strip() == "1"
+            )
             if debug_actuators and self._last_set_actuators:
                 # Check if EnergyPlus changed actuator values between timesteps.
                 for handle, prev in list(self._last_set_actuators.items()):
                     try:
-                        cur = api.exchange.get_actuator_value(state.ep_state.inner, handle)
+                        cur = api.exchange.get_actuator_value(
+                            state.ep_state.inner, handle
+                        )
                     except Exception:
                         continue
                     if abs(float(cur) - float(prev)) > 1e-6:
@@ -269,6 +272,12 @@ class EnergyPlusSimulation:
 
             self.state.last_observation = obs
             self.state.channel.put(IGotObservation(obs))
+
+            # This is the point where we switch from one .step call to another.
+
+            if self.n_steps >= self.max_steps:
+                api.runtime.stop_simulation(self.state.ep_state.inner)
+                return
 
             response_chan = Channel[RunAction | ShutDown]()
             self.state.channel.put(IWantAction(response_chan))
@@ -607,8 +616,10 @@ class EnergyPlusSimulation:
                     raise msg2.exception
                 else:
                     assert False, "Should be unreachable."
+            elif isinstance(msg1, IShutDown):
+                return self.state.last_observation, True
             else:
-                raise Exception("TODO")
+                raise Exception(f"TODO: {msg1}")
         elif isinstance(self.state, StateDone):
             return self.state.last_observation, True
         else:
@@ -668,5 +679,3 @@ class EnergyPlusSimulation:
                 raise RuntimeError("Unreachable")
 
         return out
-
-
