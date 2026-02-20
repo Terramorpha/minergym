@@ -7,18 +7,15 @@ This module only cares about control.
 
 """
 
-import collections
 import logging
 import os
-import pathlib
-import queue
 import threading
-import traceback
 import weakref
 from ctypes import c_void_p
 from dataclasses import dataclass, field
+from datetime import timedelta
 from pathlib import Path
-from typing import Any, Callable, Generic, TypeVar, Union
+from typing import Any, Callable, Union
 
 import optree
 import optree.typing
@@ -47,9 +44,18 @@ class ManagedState:
         weakref.finalize(self, delete_state, s)
 
 
+def get_current_timedelta(s: ManagedState) -> timedelta:
+    state = s.inner
+    current_time = api.exchange.current_time(state)
+    current_day = api.exchange.day_of_year(state)
+
+    return timedelta(
+        days=current_day,
+        hours=current_time,
+    )
+
+
 # Template holes and handles
-
-
 @dataclass(frozen=True, slots=True)
 class VariableHole:
     variable_name: str
@@ -181,6 +187,9 @@ class StateStarted:
     actuator_handles: Any
 
     last_observation: Any
+    last_action: tuple[Any, timedelta] | None = None
+
+    n_steps: int = 0
 
 
 @dataclass(slots=True, frozen=True)
@@ -213,8 +222,6 @@ class EnergyPlusSimulation:
 
     warmup_phases: int = 5
 
-    n_steps: int = field(default=0, init=False)
-
     """The amount of steps before the simulation exits."""
     max_steps: int = 10_000
 
@@ -226,7 +233,6 @@ class EnergyPlusSimulation:
 
     state: SimulationState = field(default=StateInit(), init=False)
     _last_set_actuators: dict[int, float] = field(default_factory=dict, init=False)
-    _last_raw_action: Any | None = field(default=None, init=False)
 
     def _reverse_step(self):
         """Send the current observation, then receive an action and run it."""
@@ -265,71 +271,84 @@ class EnergyPlusSimulation:
                             f"handle={handle} prev={prev} cur={cur}"
                         )
 
-            obs = optree.tree_map(
-                lambda han: get_handle_value(state.ep_state.inner, han),
-                self.state.observation_handles,
-            )
+            current_time = get_current_timedelta(state.ep_state)
 
-            self.state.last_observation = obs
-            self.state.channel.put(IGotObservation(obs))
+            if state.last_action is None or state.last_action[1] < current_time:
+                # The current time is the furthest we ever got. This indicates
+                # that the callback is running for the first time this step. Get
+                # the current observations
+                obs = optree.tree_map(
+                    lambda han: get_handle_value(state.ep_state.inner, han),
+                    self.state.observation_handles,
+                )
 
-            # This is the point where we switch from one .step call to another.
+                self.state.last_observation = obs
+                self.state.channel.put(IGotObservation(obs))
 
-            if self.n_steps >= self.max_steps:
-                api.runtime.stop_simulation(self.state.ep_state.inner)
-                return
+                # This is the point where we switch from the second half of a .step
+                # call to the first half of another.
 
-            response_chan = Channel[RunAction | ShutDown]()
-            self.state.channel.put(IWantAction(response_chan))
+                if self.state.n_steps >= self.max_steps:
+                    api.runtime.stop_simulation(self.state.ep_state.inner)
+                    return
+                else:
+                    self.state.n_steps += 1
 
-            response = response_chan.get()
-            if isinstance(response, RunAction):
-                act = response.act
-                # Cache the latest raw action so subclasses/callbacks can
-                # re-apply actuator values at a later calling point if needed.
-                self._last_raw_action = act
+                response_chan = Channel[RunAction | ShutDown]()
+                self.state.channel.put(IWantAction(response_chan))
+                response = response_chan.get()
+                if isinstance(response, RunAction):
+                    act = response.act
+                    state.last_action = (act, current_time)
+                elif isinstance(response, ShutDown):
+                    api.runtime.stop_simulation(self.state.ep_state.inner)
+                    return
+                else:
+                    raise Exception(f"TODO: {response}")
+            else:
+                act = self.state.last_action[0]
                 if debug_actuators:
                     try:
                         logger.info(f"Applying raw action to EnergyPlus: {act}")
                     except Exception:
                         logger.info("Applying raw action to EnergyPlus (unprintable)")
 
-                # same path and set its value.
-                for accessor in optree.tree_accessors(act):
-                    h: ActuatorHandle = accessor(self.state.actuator_handles)
-                    the_value = accessor(act)
+            # Now we write tha action, whether or not it was obtained from the
+            # client thread or by reusing the last action.
 
-                    before = None
-                    if debug_actuators:
-                        try:
-                            before = api.exchange.get_actuator_value(
-                                self.state.ep_state.inner, h.handle
-                            )
-                        except Exception:
-                            before = None
+            # same path and set its value.
+            for accessor in optree.tree_accessors(act):
+                h: ActuatorHandle = accessor(self.state.actuator_handles)
+                the_value = accessor(act)
 
-                    api.exchange.set_actuator_value(
-                        self.state.ep_state.inner, h.handle, the_value
+                before = None
+                if debug_actuators:
+                    try:
+                        before = api.exchange.get_actuator_value(
+                            self.state.ep_state.inner, h.handle
+                        )
+                    except Exception:
+                        before = None
+
+                api.exchange.set_actuator_value(
+                    self.state.ep_state.inner, h.handle, the_value
+                )
+
+                after = None
+                if debug_actuators:
+                    try:
+                        after = api.exchange.get_actuator_value(
+                            self.state.ep_state.inner, h.handle
+                        )
+                    except Exception:
+                        after = None
+                    logger.info(
+                        f"set_actuator_value handle={h.handle} value={the_value} "
+                        f"before={before} after={after}"
                     )
 
-                    after = None
-                    if debug_actuators:
-                        try:
-                            after = api.exchange.get_actuator_value(
-                                self.state.ep_state.inner, h.handle
-                            )
-                        except Exception:
-                            after = None
-                        logger.info(
-                            f"set_actuator_value handle={h.handle} value={the_value} "
-                            f"before={before} after={after}"
-                        )
-
-                    # Track last value we attempted to set for override detection.
-                    self._last_set_actuators[h.handle] = float(the_value)
-            elif isinstance(response, ShutDown):
-                api.runtime.stop_simulation(self.state.ep_state.inner)
-                return
+                # Track last value we attempted to set for override detection.
+                self._last_set_actuators[h.handle] = float(the_value)
 
     def callback_timestep(self, _) -> None:
         if isinstance(self.state, StateStarting):
@@ -379,8 +398,6 @@ class EnergyPlusSimulation:
         else:
             raise Exception("TODO")
 
-        self.n_steps += 1
-
     def register_callbacks(self, ep_state: c_void_p) -> None:
         """Register runtime callbacks.
 
@@ -424,8 +441,7 @@ class EnergyPlusSimulation:
     #         )
 
     def construct_handles(self, state: c_void_p) -> tuple[Any, Any]:
-        if self.verbose:
-            print("constructing handles")
+        logger.debug("constructing handles")
 
         # Most of Variable, Meter, Actuator need to be converted (by a
         # running simulation) into a not-so-human-readable numerical handle.
@@ -572,8 +588,7 @@ class EnergyPlusSimulation:
         self.register_callbacks(managed_ep_state.inner)
 
         def warmup_callback(state: c_void_p):
-            if self.verbose:
-                print("warmup phase complete")
+            logger.debug("warmup phase complete")
 
             if isinstance(self.state, StateStarting):
                 self.state.number_of_warmup_phases_completed += 1
