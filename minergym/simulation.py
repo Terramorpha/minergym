@@ -216,7 +216,7 @@ class EnergyPlusSimulation:
     n_steps: int = field(default=0, init=False)
 
     """The amount of steps before the simulation exits."""
-    max_steps: int = 10_000
+    max_steps: int = 200_000
 
     """The directory in which energyplus will write its log files."""
     log_dir: Path = Path("eplus_output")
