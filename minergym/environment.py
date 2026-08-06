@@ -5,15 +5,23 @@ trouble to any gymnasium consumer.
 
 """
 
+import gc
+import logging
+import shutil
+import threading
 import typing
-from dataclasses import dataclass
+from pathlib import Path
 
 import gymnasium
 
 import minergym.simulation as simulation
 
+logger = logging.getLogger(__name__)
+
 ObsType = typing.TypeVar("ObsType")
 ActType = typing.TypeVar("ActType")
+
+_DEFAULT_THREAD_JOIN_TIMEOUT: float = 10.0
 
 
 class EnergyPlusEnvironment(gymnasium.Env, typing.Generic[ObsType, ActType]):
@@ -68,6 +76,9 @@ class EnergyPlusEnvironment(gymnasium.Env, typing.Generic[ObsType, ActType]):
         observation_transform: typing.Callable[[typing.Any], ObsType],
         action_space: gymnasium.Space[ActType],
         action_transform: typing.Callable[[ActType], typing.Any],
+        eplus_output_dir: Path | None = None,
+        cleanup_output_dir_on_close: bool = False,
+        thread_join_timeout: float = _DEFAULT_THREAD_JOIN_TIMEOUT,
     ):
         super(EnergyPlusEnvironment, self).__init__()
         self.make_energyplus = make_energyplus
@@ -79,6 +90,40 @@ class EnergyPlusEnvironment(gymnasium.Env, typing.Generic[ObsType, ActType]):
         self.action_transform = action_transform
         self.ep = None
 
+        self.eplus_output_dir: Path | None = eplus_output_dir
+        self.cleanup_output_dir_on_close: bool = cleanup_output_dir_on_close
+        self.thread_join_timeout: float = thread_join_timeout
+
+    def close(self) -> None:
+        # Gate cleanup on whether a simulation was actually running.
+        # close() is called polymorphically from reset() (after the subclass
+        # may have already nulled self.ep), so this guard makes it idempotent.
+        had_ep = self.ep is not None
+        if had_ep:
+            # Capture the thread reference before try_stop() transitions the
+            # simulation state from StateStarted to StateDone (which drops
+            # the ep_thread attribute from the state object).
+            ep_sim_state = getattr(self.ep, "state", None)
+            ep_thread = getattr(ep_sim_state, "ep_thread", None)
+
+            self.ep.try_stop()
+
+            if isinstance(ep_thread, threading.Thread) and ep_thread.is_alive():
+                ep_thread.join(timeout=self.thread_join_timeout)
+                if ep_thread.is_alive():
+                    logger.warning(
+                        "EnergyPlus thread did not exit within %.1fs; "
+                        "resources may leak.",
+                        self.thread_join_timeout,
+                    )
+
+            self.ep = None
+
+        gc.collect()
+
+        if had_ep and self.cleanup_output_dir_on_close and self.eplus_output_dir is not None:
+            shutil.rmtree(self.eplus_output_dir, ignore_errors=True)
+
     def reset(
         self,
         *,
@@ -86,8 +131,13 @@ class EnergyPlusEnvironment(gymnasium.Env, typing.Generic[ObsType, ActType]):
         options: dict[str, typing.Any] | None = None,
     ) -> typing.Tuple[typing.Any, dict[str, typing.Any]]:
         super().reset()
-        if self.ep is not None:
-            self.ep.try_stop()
+        self.close()
+
+        # Recreate the output directory so EnergyPlus has a clean destination.
+        # close() may have rmtree'd it (when cleanup_output_dir_on_close=True),
+        # so mkdir here ensures the directory exists before make_energyplus().
+        if self.eplus_output_dir is not None:
+            self.eplus_output_dir.mkdir(parents=True, exist_ok=True)
 
         self.ep = self.make_energyplus()
         obs, over = self.ep.start()
