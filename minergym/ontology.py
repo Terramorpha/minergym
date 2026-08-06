@@ -207,6 +207,27 @@ WHERE {
             out[r.zoneA].add(r.zoneB)
             out[r.zoneB].add(r.zoneA)
 
+        # Second idiom: EnergyPlus also allows a surface to name the ZONE on
+        # its other side directly (outside_boundary_condition = "Zone" +
+        # outside_boundary_condition_object = <zone name>) instead of the
+        # mirror-surface form above. The ASHRAE 90.1 prototype buildings use
+        # this form exclusively, so without this query they report an EMPTY
+        # adjacency graph.
+        q2 = """# -*- mode: sparql -*-
+SELECT ?zoneA ?zoneB
+WHERE {
+  ?surfaceA a "BuildingSurface:Detailed" .
+  ?surfaceA idf:zone_name ?zoneA .
+  ?surfaceA idf:outside_boundary_condition "Zone" .
+  ?surfaceA idf:outside_boundary_condition_object ?zoneB .
+}
+"""
+
+        for r in self.rdf.query(q2):
+            if r.zoneA != r.zoneB:
+                out.setdefault(r.zoneA, set()).add(r.zoneB)
+                out.setdefault(r.zoneB, set()).add(r.zoneA)
+
         return out
 
     def schedules(self) -> List[Node]:
